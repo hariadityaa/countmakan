@@ -64,7 +64,7 @@ for (const width of [360, 412]) {
       expect.soft(await page.evaluate(wrappedLabels), 'history').toEqual([]);
 
       await page.locator('nav button[data-tab=settings]').click();
-      await page.locator('#setup summary').click();
+      await page.locator('#setup > summary').click();
       expect.soft(await page.evaluate(wrappedLabels), 'settings').toEqual([]);
     });
 

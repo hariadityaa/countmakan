@@ -1,4 +1,4 @@
-import { CHAIN, DEFAULT_TARGETS, IMAGE_MAX_PX, THUMB_MAX_PX, PROVIDER_LABELS } from './config.js';
+import { CHAIN, DEFAULT_TARGETS, IMAGE_MAX_PX, THUMB_MAX_PX, PROVIDER_LABELS, OPTIONAL_PROVIDERS } from './config.js';
 import { estimate, testKey } from './chain.js';
 import { totals, scaleItem, normalizeItem, mealTitle } from './schema.js';
 import { parseSetupFragment, buildSetupLink, loadKeys, saveKeys, maskKey, PROVIDERS } from './keys.js';
@@ -506,7 +506,22 @@ function renderSettings() {
     el('input', { id: `t-${m}`, type: 'number', inputmode: 'numeric', min: '0', value: state.targets[m] }))));
   health.preload().catch(() => {});
   renderHealth();
-  $('#chain').replaceChildren(...CHAIN.map((s) => el('li', {}, `${PROVIDER_LABELS[s.provider]} · ${s.model}${state.keys[s.provider] ? '' : ' (no key)'}`)));
+  if (!state.keys.gemini) $('#gemini-guide').open = true;
+  if (state.keys.deepseek) $('#deepseek-section').open = true;
+  $('#chain').replaceChildren(...CHAIN.map((s) => el('li', {}, `${PROVIDER_LABELS[s.provider]} · ${s.model}${keyNote(s.provider)}`)));
+}
+
+function keyNote(p) {
+  if (state.keys[p]) return '';
+  return OPTIONAL_PROVIDERS.includes(p) ? ' (optional, no key)' : ' (no key)';
+}
+
+// Not-set-up card: jump straight to Setup with the key guide open.
+function openOwnKeySetup() {
+  showTab('settings');
+  $('#setup').open = true;
+  $('#gemini-guide').open = true;
+  $('#setup').scrollIntoView({ block: 'start' });
 }
 
 function readKeyInputs() {
@@ -518,7 +533,7 @@ async function onTestKeys() {
   const out = $('#key-results');
   out.replaceChildren(el('li', {}, 'Testing…'));
   const rows = await Promise.all(PROVIDERS.map(async (p) => {
-    if (!keys[p]) return el('li', {}, `${PROVIDER_LABELS[p]}: not set`);
+    if (!keys[p]) return el('li', {}, `${PROVIDER_LABELS[p]}: not set${OPTIONAL_PROVIDERS.includes(p) ? ' (optional)' : ''}`);
     const r = await testKey(p, keys[p].trim());
     return el('li', {}, `${r.ok ? '✓' : '✕'} ${PROVIDER_LABELS[p]}: ${r.message}`);
   }));
@@ -631,6 +646,7 @@ async function boot() {
   });
   $('#test-keys').addEventListener('click', onTestKeys);
   $('#make-link').addEventListener('click', onMakeLink);
+  $('#own-key').addEventListener('click', openOwnKeySetup);
   $('#save-targets').addEventListener('click', onSaveTargets);
   $('#export').addEventListener('click', onExport);
   $('#import').addEventListener('change', onImport);

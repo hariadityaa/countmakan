@@ -24,6 +24,8 @@
       <div class="card notice" id="not-set-up" hidden>
         <h2>Not set up yet</h2>
         <p>Ask Hari to send you the setup link. Open it on this phone.</p>
+        <p class="muted">Or use your own free Gemini key.</p>
+        <button type="button" class="btn" id="own-key">Use my own key</button>
       </div>
 
       <div class="card promo" id="install" hidden>
@@ -128,12 +130,34 @@
       </div>
 
       <details class="card setup" id="setup">
-        <summary>Setup (Hari only)</summary>
+        <summary>Setup (API keys)</summary>
         <p class="muted">Keys stay on this phone only.</p>
-        <label for="key-gemini">Gemini API key</label>
+        <label for="key-gemini">Gemini API key (free)</label>
         <input id="key-gemini" type="password" autocomplete="off" spellcheck="false">
-        <label for="key-deepseek">DeepSeek API key</label>
-        <input id="key-deepseek" type="password" autocomplete="off" spellcheck="false">
+        <details class="guide" id="gemini-guide">
+          <summary>How to get a free Gemini key</summary>
+          <p>About 2 minutes. You don't need a credit card.</p>
+          <ol>
+            <li>Open <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> on this phone or a computer.</li>
+            <li>Sign in with any Google account.</li>
+            <li>If asked, accept the terms.</li>
+            <li>Tap <b>Create API key</b>. If it asks for a project, pick the default one.</li>
+            <li>Copy the key. It starts with <code>AIza</code>.</li>
+            <li>Come back here and paste it into "Gemini API key". Then tap <b>Save keys</b> and <b>Test keys</b>.</li>
+          </ol>
+          <p class="muted">Good to know:</p>
+          <ul class="muted">
+            <li>The free key has a daily limit. When it's reached, the app switches to a lighter model.</li>
+            <li>On the free tier, Google may use your photos and descriptions to improve its products. Adding billing to the key stops this.</li>
+            <li>Keep the key private. Anyone with it can use your quota.</li>
+          </ul>
+        </details>
+        <details class="guide" id="deepseek-section">
+          <summary>Optional: DeepSeek key (paid)</summary>
+          <p class="muted">Only needed if you have a paid DeepSeek account. The app works with just a Gemini key.</p>
+          <label for="key-deepseek">DeepSeek API key</label>
+          <input id="key-deepseek" type="password" autocomplete="off" spellcheck="false">
+        </details>
         <div class="row">
           <button type="button" class="btn primary" id="save-keys">Save keys</button>
           <button type="button" class="btn" id="test-keys">Test keys</button>

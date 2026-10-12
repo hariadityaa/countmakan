@@ -4,7 +4,7 @@
 export const MSG = {
   offline: 'No internet. Check your connection and try again.',
   busy: 'The food checker is busy right now. Try again in a minute.',
-  setup: 'The app needs fixing. Please tell Hari.',
+  setup: 'The app needs fixing. Check the keys in Settings, or tell Hari.',
   unreadable: "We couldn't read this photo. Try another photo, or type what you ate.",
   noFood: "We couldn't see any food. Try another photo, or type what you ate.",
   photo: "We couldn't open that photo. Try another one.",

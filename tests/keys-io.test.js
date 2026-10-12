@@ -64,3 +64,8 @@ test('import rejects foreign files and skips bad entries', () => {
 test('localDay formats local dates', () => {
   assert.equal(localDay(new Date(2026, 0, 5, 23, 59)), '2026-01-05');
 });
+
+test('gemini-only setup link round-trips without deepseek', () => {
+  const link = buildSetupLink('https://x.test/app/', { gemini: 'AIza1' });
+  assert.deepEqual(parseSetupFragment(link.slice(link.indexOf('#'))), { gemini: 'AIza1' });
+});
