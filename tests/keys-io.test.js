@@ -51,7 +51,7 @@ test('export then import keeps entries', () => {
 
 test('import rejects foreign files and skips bad entries', () => {
   assert.throws(() => parseImport('nope'), /valid JSON/);
-  assert.throws(() => parseImport('{"entries":[]}'), /Not a countmakan export/);
+  assert.throws(() => parseImport('{"entries":[]}'), /Not a Makan Meter export/);
   const { entries } = parseImport(JSON.stringify({
     app: 'countmakan',
     entries: [{ id: 1, ts: 'x' }, { id: 'ok', ts: '2026-01-01T00:00:00Z', thumb: 'javascript:alert(1)' }],
