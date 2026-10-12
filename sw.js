@@ -1,6 +1,6 @@
 // Network-first for same-origin GETs, so updates land on the next load.
 // Falls back to cache when offline. API calls (cross-origin) are not touched.
-// deploy.yml replaces countmakan-v<N> with the commit SHA.
+// deploy.yml stamps the commit SHA into CACHE. Readers match the CACHE line.
 const CACHE = 'countmakan-v2';
 const SHELL = [
   './', 'index.html', 'css/app.css', 'manifest.webmanifest', 'icons/icon-192.png',
