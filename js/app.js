@@ -373,7 +373,7 @@ function drawEditor() {
         field(id('protein'), 'Protein g', it.protein, update('protein')),
         field(id('carbs'), 'Carbs g', it.carbs, update('carbs')),
         field(id('fat'), 'Fat g', it.fat, update('fat'))),
-      el('button', { type: 'button', class: 'btn danger', onclick: () => { d.items.splice(i, 1); renderEditor(); } }, `Remove ${it.name}`));
+      el('button', { type: 'button', class: 'btn danger', 'aria-label': `Remove this food: ${it.name}`, onclick: () => { d.items.splice(i, 1); renderEditor(); } }, 'Remove this food'));
   });
   const t = totals(d.items);
   $('#editor').replaceChildren(...[

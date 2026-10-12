@@ -15,7 +15,7 @@ Live at https://hariadityaa.github.io/countmakan/
 - Keys, "Test keys", the setup link and the provider order sit in a folded "Setup (Hari only)" section.
 
 ## Screens
-- Home: one big "Take a photo of your food" button. "Choose photo" and "Type it in" sit below.
+- Home: one big "Take a photo" button. "Choose photo" and "Type it in" sit below.
 - The photo is shown first ("Is this the right photo?"). Nothing is sent until "Count calories", so a wrong photo costs nothing.
 - Loading is a full-screen wait view: "Please wait. You don't need to do anything." Nothing behind it can be tapped.
 - Its steps follow real events (sent, looking, results). On fallback the middle step says "Trying another way…". A seconds counter shows it is alive. "Stop and go back" is always there.
