@@ -8,6 +8,7 @@ import { prepareImage } from './image.js';
 import { describeFailure, MSG } from './messages.js';
 import * as db from './db.js';
 import * as health from './health.js';
+import { ringSvg, weekChartSvg, daySeries, macroSplit } from './charts.js';
 
 const $ = (sel) => document.querySelector(sel);
 const GOALS = ['kcal', 'protein', 'carbs', 'fat', 'sugar', 'fibre', 'sodium'];
@@ -46,7 +47,11 @@ function el(tag, attrs = {}, ...kids) {
 
 const fmt = (n) => Math.round(Number(n) || 0).toLocaleString('en');
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
-const macroLine = (t) => `Protein ${fmt(t.protein)} g · Carbs ${fmt(t.carbs)} g · Fat ${fmt(t.fat)} g`;
+const MACRO_KEYS = ['protein', 'carbs', 'fat'];
+const MACRO_NAMES = { protein: 'Protein', carbs: 'Carbs', fat: 'Fat' };
+const dot = (m) => el('span', { class: `dot ${m}`, 'aria-hidden': 'true' });
+// "● Protein 12 g · ● Carbs 30 g · ● Fat 8 g", each macro in its own colour.
+const macroLine = (t) => MACRO_KEYS.flatMap((m, i) => [i ? ' · ' : '', el('span', { class: 'nowrap' }, dot(m), `${MACRO_NAMES[m]} ${fmt(t[m])} g`)]);
 const extraLine = (t) => `Sugar ${fmt(t.sugar)} g · Fibre ${fmt(t.fibre)} g · Sodium ${fmt(t.sodium)} mg`;
 const hasKeys = () => PROVIDERS.some((p) => state.keys[p]);
 
@@ -135,13 +140,37 @@ function resetAdd() {
 }
 
 // ---------- Summary ----------
+function bar(m, value, target) {
+  const pct = target ? Math.min(100, (value / target) * 100) : 0;
+  const over = target && value > target;
+  return el('div', {},
+    el('div', { class: 'bar-label' },
+      el('span', {}, dot(m), MACRO_NAMES[m]),
+      el('span', {}, `${fmt(value)} g of ${fmt(target)} g`, over ? el('span', { class: 'over-tag' }, ' · over') : null)),
+    el('div', { class: 'bar', 'aria-hidden': 'true' }, el('i', { class: m, style: `width:${pct}%` })));
+}
+
+// Sugar, fibre and sodium. Neutral, so the macro colours stay unique.
 // isMin marks a goal to reach (fibre), so going past it is not shown as over.
-function bar(label, value, target, unit = 'g', isMin = false) {
+function limitBar(label, value, target, unit, isMin = false) {
   const pct = target ? Math.min(100, (value / target) * 100) : 0;
   const over = !isMin && target && value > target;
   return el('div', {},
-    el('div', { class: 'bar-label' }, el('span', {}, label), el('span', {}, `${fmt(value)} ${unit} of ${fmt(target)} ${unit}`)),
-    el('div', { class: `bar${over ? ' over' : ''}`, 'aria-hidden': 'true' }, el('i', { style: `width:${pct}%` })));
+    el('div', { class: 'bar-label' },
+      el('span', {}, label),
+      el('span', {}, `${fmt(value)} ${unit} of ${fmt(target)} ${unit}`, over ? el('span', { class: 'over-tag' }, ' · over') : null)),
+    el('div', { class: 'bar', 'aria-hidden': 'true' }, el('i', { style: `width:${pct}%` })));
+}
+
+// One strip split by each macro's share of calories.
+function splitStrip(t) {
+  const split = macroSplit(t);
+  if (!split) return null;
+  return el('div', { class: 'split' },
+    el('div', { class: 'split-title' }, 'Where your calories came from'),
+    el('div', { class: 'split-bar', 'aria-hidden': 'true' },
+      MACRO_KEYS.filter((m) => split[m] > 0).map((m) => el('i', { class: m, style: `flex-grow:${split[m]}` }))),
+    el('div', { class: 'split-legend' }, MACRO_KEYS.map((m) => el('span', { class: 'nowrap' }, dot(m), `${MACRO_NAMES[m]} ${split[m]}%`))));
 }
 
 function renderSummary() {
@@ -149,17 +178,23 @@ function renderSummary() {
   const t = totals(state.entries.filter((e) => e.day === today).flatMap((e) => e.items));
   const goal = state.targets.kcal;
   const left = goal - t.kcal;
+  const ring = el('div', { class: 'ring-wrap' },
+    el('div', { class: 'ring-center' },
+      el('div', { class: 'big-num' }, fmt(t.kcal)),
+      el('div', { class: 'ring-unit' }, 'calories')));
+  ring.insertAdjacentHTML('afterbegin', ringSvg(t.kcal, goal));
   $('#summary').replaceChildren(
     el('div', { class: 'muted' }, `Today, ${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}`),
-    el('div', { class: 'big-num' }, fmt(t.kcal), ' ', el('small', {}, 'calories')),
-    el('div', {}, left >= 0 ? `${fmt(left)} left of your ${fmt(goal)} goal` : `${fmt(-left)} over your ${fmt(goal)} goal`),
+    el('div', { class: 'hero' }, ring,
+      el('div', { class: 'hero-text' },
+        el('div', { class: `hero-left${left < 0 ? ' over' : ''}` }, fmt(Math.abs(left))),
+        el('div', {}, left >= 0 ? `left of your ${fmt(goal)} goal` : `over your ${fmt(goal)} goal`))),
+    splitStrip(t),
+    el('div', { class: 'bars' }, MACRO_KEYS.map((m) => bar(m, t[m], state.targets[m]))),
     el('div', { class: 'bars' },
-      bar('Protein', t.protein, state.targets.protein),
-      bar('Carbs', t.carbs, state.targets.carbs),
-      bar('Fat', t.fat, state.targets.fat),
-      bar('Sugar', t.sugar, state.targets.sugar),
-      bar('Fibre', t.fibre, state.targets.fibre, 'g', true),
-      bar('Sodium', t.sodium, state.targets.sodium, 'mg')),
+      limitBar('Sugar', t.sugar, state.targets.sugar, 'g'),
+      limitBar('Fibre', t.fibre, state.targets.fibre, 'g', true),
+      limitBar('Sodium', t.sodium, state.targets.sodium, 'mg')),
   );
 }
 
@@ -178,10 +213,57 @@ function entryRow(e) {
 function renderToday() {
   const today = localDay(new Date());
   const list = state.entries.filter((e) => e.day === today);
-  $('#today-list').replaceChildren(...(list.length ? list.map(entryRow) : [el('li', { class: 'empty' }, 'No meals yet today.')]));
+  $('#today-list').replaceChildren(...(list.length ? list.map(entryRow) : [el('li', { class: 'empty' }, 'No meals yet today. Your first one will show up here.')]));
   renderFavs();
   renderSummary();
   if (!$('#add').hidden || !$('#welcome').hidden || !$('#not-set-up').hidden) showStep('add');
+}
+
+// Last 7 days as bars against the calorie goal. Tap a bar for that day.
+function weekCard() {
+  const today = localDay(new Date());
+  const series = daySeries(state.entries, today, 7).map((d) => ({
+    ...d, label: new Date(`${d.day}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short' }),
+  }));
+  const goal = state.targets.kcal;
+  const logged = series.filter((d) => d.logged);
+  const avg = logged.length ? logged.reduce((a, d) => a + d.kcal, 0) / logged.length : 0;
+  const summary = logged.length
+    ? `About ${fmt(avg)} calories a day, on ${logged.length} day${logged.length > 1 ? 's' : ''} with meals.`
+    : 'No meals in the last 7 days.';
+  const caption = el('p', { class: 'wk-caption', 'aria-live': 'polite' }, summary);
+  const describe = (d) => {
+    const date = new Date(`${d.day}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
+    if (!d.logged) return `${date}: no meals saved.`;
+    const diff = d.kcal - goal;
+    return `${date}: ${fmt(d.kcal)} calories, ${diff > 0 ? `${fmt(diff)} over` : `${fmt(-diff)} under`} your goal.`;
+  };
+  const chart = el('div', { class: 'wk-wrap' });
+  chart.innerHTML = weekChartSvg(series, goal, today);
+  let active = null;
+  const select = (hit) => {
+    active?.classList.remove('active');
+    active = hit;
+    hit?.classList.add('active');
+    caption.textContent = hit ? describe(series[hit.dataset.i]) : summary;
+  };
+  for (const hit of chart.querySelectorAll('.wk-hit')) {
+    hit.addEventListener('pointerenter', (ev) => { if (ev.pointerType === 'mouse') select(hit); });
+    hit.addEventListener('click', () => {
+      select(hit);
+      document.getElementById(`day-${series[hit.dataset.i].day}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+  chart.addEventListener('pointerleave', (ev) => { if (ev.pointerType === 'mouse') select(null); });
+  return el('div', { class: 'card' },
+    el('h2', {}, 'Last 7 days'),
+    chart,
+    caption,
+    el('div', { class: 'wk-legend' },
+      el('span', { class: 'nowrap' }, el('i', { class: 'key under' }), 'Under goal'),
+      el('span', { class: 'nowrap' }, el('i', { class: 'key over' }), 'Over goal'),
+      el('span', { class: 'nowrap' }, el('i', { class: 'key goal' }), `Goal ${fmt(goal)}`),
+      el('span', { class: 'nowrap' }, el('i', { class: 'key none' }), 'No meals')));
 }
 
 function renderHistory() {
@@ -193,12 +275,14 @@ function renderHistory() {
   const cards = [...byDay.entries()].map(([day, list]) => {
     const t = totals(list.flatMap((e) => e.items));
     const label = new Date(`${day}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
-    return el('div', { class: 'card' },
+    return el('div', { class: 'card', id: `day-${day}` },
       el('div', { class: 'day-head' }, el('h2', {}, label), el('span', { class: 'day-total' }, `${fmt(t.kcal)} calories`)),
       el('div', { class: 'muted' }, macroLine(t)),
       el('ul', { class: 'entries' }, list.map(entryRow)));
   });
-  $('#history').replaceChildren(...(cards.length ? cards : [el('div', { class: 'card empty' }, 'No meals saved yet.')]));
+  $('#history').replaceChildren(...(cards.length
+    ? [weekCard(), ...cards]
+    : [el('div', { class: 'card empty' }, 'No meals saved yet. Once you save some, you\'ll see a chart of your week here.')]));
 }
 
 // ---------- Favourites ----------
@@ -468,9 +552,9 @@ function drawEditor() {
         field(id('grams'), 'Grams', it.grams, update('grams')),
         field(id('kcal'), 'Calories', it.kcal, update('kcal'))),
       el('div', { class: 'item-macros' },
-        field(id('protein'), 'Protein g', it.protein, update('protein')),
-        field(id('carbs'), 'Carbs g', it.carbs, update('carbs')),
-        field(id('fat'), 'Fat g', it.fat, update('fat'))),
+        field(id('protein'), 'Protein g', it.protein, update('protein'), 'm-protein'),
+        field(id('carbs'), 'Carbs g', it.carbs, update('carbs'), 'm-carbs'),
+        field(id('fat'), 'Fat g', it.fat, update('fat'), 'm-fat')),
       el('div', { class: 'item-macros' },
         field(id('sugar'), 'Sugar g', it.sugar, update('sugar')),
         field(id('fibre'), 'Fibre g', it.fibre, update('fibre')),

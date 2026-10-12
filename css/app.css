@@ -8,6 +8,8 @@
   --red: #ef4444;  --green: #22c55e;  --green-2: #16a34a;
   --promo-bg: #0c1a11;  --promo-border: #1f5133;
   --overlay: rgb(0 0 0 / .6);
+  /* Data colours. Macros keep one hue each everywhere; amber marks over-goal. Validated for colour-blind contrast on --surface. */
+  --protein: #3987e5;  --carbs: #d95926;  --fat: #199e70;  --over: #f59e0b;
 
   --r: 8px;  --r-sm: 6px;  --r-lg: 12px;  --r-pill: 999px;
   --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px;
@@ -113,8 +115,60 @@ textarea { padding: var(--s-2) var(--s-3); resize: vertical; }
 .bars { display: grid; gap: var(--s-3); margin-top: var(--s-4); }
 .bar-label { display: flex; justify-content: space-between; font-size: .875rem; color: var(--text-2); font-variant-numeric: tabular-nums; }
 .bar { height: 8px; background: var(--border); border-radius: var(--r-sm); overflow: hidden; margin-top: var(--s-1); }
-.bar > i { display: block; height: 100%; background: var(--accent); }
-.bar.over > i { background: var(--text-2); }
+.bar > i { display: block; height: 100%; background: var(--accent); border-radius: var(--r-sm); transition: width 400ms ease; }
+.over-tag { color: var(--over); font-weight: 600; }
+.nowrap { white-space: nowrap; }
+
+/* Calorie ring */
+.hero { display: flex; align-items: center; gap: var(--s-6); margin-top: var(--s-3); }
+.ring-wrap { position: relative; flex: none; width: 152px; height: 152px; }
+.ring { display: block; width: 100%; height: 100%; }
+.ring circle { fill: none; stroke-width: 10; }
+.ring-track { stroke: var(--border); }
+.ring-val { stroke: var(--accent); stroke-linecap: round; transition: stroke-dasharray 400ms ease; }
+.ring-val.over { stroke: var(--over); }
+.ring-center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+.ring-unit { font-size: .875rem; color: var(--text-2); }
+.hero-left { font-size: 1.5rem; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.hero-left.over { color: var(--over); }
+.hero-text { color: var(--text-2); }
+@media (max-width: 374px) {
+  .hero { gap: var(--s-4); }
+  .ring-wrap { width: 128px; height: 128px; }
+}
+
+/* Macro colours */
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+.dot.protein, .bar > i.protein, .split-bar > i.protein { background: var(--protein); }
+.dot.carbs, .bar > i.carbs, .split-bar > i.carbs { background: var(--carbs); }
+.dot.fat, .bar > i.fat, .split-bar > i.fat { background: var(--fat); }
+.split { margin-top: var(--s-6); }
+.split-title { font-size: .875rem; color: var(--text-2); }
+.split-bar { display: flex; gap: 2px; height: 12px; margin: var(--s-2) 0; }
+.split-bar > i { display: block; flex-basis: 0; min-width: 4px; }
+.split-bar > i:first-child { border-radius: var(--r-sm) 0 0 var(--r-sm); }
+.split-bar > i:last-child { border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+.split-legend { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-4); font-size: .875rem; color: var(--text-2); font-variant-numeric: tabular-nums; }
+
+/* Last 7 days chart */
+.wk-wrap { margin: var(--s-2) calc(-1 * var(--s-1)) 0; }
+.wk { display: block; width: 100%; height: auto; }
+.wk-bar { fill: var(--accent); }
+.wk-bar.over { fill: var(--over); }
+.wk-empty { fill: none; stroke: var(--text-3); stroke-dasharray: 3 2; }
+.wk-base { stroke: var(--border-strong); }
+.wk-target { stroke: var(--text-2); stroke-width: 1.5; stroke-dasharray: 5 4; pointer-events: none; }
+.wk-label { fill: var(--text-2); font-size: 12px; font-family: var(--font); }
+.wk-label.today { fill: var(--text); font-weight: 600; }
+.wk-hit { fill: transparent; cursor: pointer; }
+.wk-hit.active { fill: var(--text); fill-opacity: .06; }
+.wk-caption { margin: var(--s-2) 0 var(--s-3); min-height: 3em; font-weight: 600; font-variant-numeric: tabular-nums; }
+.wk-legend { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-4); font-size: .875rem; color: var(--text-2); }
+.key { display: inline-block; width: 12px; height: 10px; margin-right: 6px; border-radius: 2px; }
+.key.under { background: var(--accent); }
+.key.over { background: var(--over); }
+.key.goal { height: 0; border-top: 2px dashed var(--text-2); border-radius: 0; vertical-align: 3px; }
+.key.none { border: 1px dashed var(--text-3); }
 
 /* Notices */
 .notice { background: var(--surface-2); border-color: var(--border-strong); font-weight: 600; }
@@ -180,6 +234,9 @@ pre { white-space: pre-wrap; word-break: break-word; font: .875rem/1.5 var(--fon
 .item-cals { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); }
 .item-macros { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-2); align-items: end; }
 .item-macros input, .item-cals input { text-align: center; font-variant-numeric: tabular-nums; }
+.m-protein input { border-bottom: 3px solid var(--protein); }
+.m-carbs input { border-bottom: 3px solid var(--carbs); }
+.m-fat input { border-bottom: 3px solid var(--fat); }
 .badge {
   display: inline-block; margin-top: var(--s-2); padding: 0 var(--s-3);
   border: 1px solid var(--border-strong); border-radius: var(--r-pill); color: var(--text-2);
