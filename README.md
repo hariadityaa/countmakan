@@ -50,6 +50,27 @@ DeepSeek is paid, so it goes last. Its answer is capped at 1,000 tokens.
 
 Treat the setup link like a password. Anyone holding it can spend the keys.
 
+## Google Health sync
+Optional. Settings → Google Health → Connect. Each phone connects its owner's Google account.
+
+- Each saved meal becomes one nutrition log in the Google Health app, under Food and drink.
+- The browser calls `health.googleapis.com` directly. The API allows CORS from the Pages origin.
+- Scope: `googlehealth.nutrition.writeonly`. It covers create, list and delete of logs this app wrote.
+- Meal type is guessed from the hour: 04–11 breakfast, 11–15 lunch, 18–22 dinner, else snack. The app shows snack as "Other".
+- Custom logs can't be edited, so an edit deletes the old log and creates a new one.
+- A delete waits 9 s so Undo can cancel it, then removes the remote log.
+- Only meals saved while connected are sent. Older and imported meals are not.
+- Tokens last 1 hour and a browser can't refresh them. Meals saved after expiry queue up. Today then shows "Send to Google Health".
+- Sync is one way. Deleting in Google Health does not touch Makan Meter.
+
+GCP setup (project `makan-meter`, done once):
+1. Enable the Google Health API.
+2. OAuth consent screen: External, publishing status Testing. Add each user under Test users.
+3. Data access: add `googlehealth.nutrition.writeonly`.
+4. Web client with JavaScript origin `https://hariadityaa.github.io`. Its ID is in `js/config.js`. It is not a secret.
+
+New users must be added as test users first. Testing mode shows an "unverified app" screen; tap Continue.
+
 ## Data and privacy
 - Storage keys, the IndexedDB name, the cache name and the export `app` field stay `countmakan`. Renaming them would orphan saved data.
 - The free Gemini tier may use inputs, including photos, to improve Google products ([terms](https://ai.google.dev/gemini-api/terms)). Hari accepted this. Turning on billing for the key stops it.
@@ -76,3 +97,4 @@ Serve locally with any static server, e.g. `python3 -m http.server`.
 - Workers AI was dropped because it needs Cloudflare.
 - Defaults: no daily request cap, English UI, targets for kcal, protein, carbs and fat.
 - Eval (Nutrition5k plus weighed home meals) is deferred.
+- Google Health sync: one log per meal, meal type from the clock, new meals only. The Google Fit API was rejected: closed to new projects and sunset in 2026.

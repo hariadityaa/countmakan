@@ -26,3 +26,9 @@ export const IMAGE_MAX_PX = 768;
 export const THUMB_MAX_PX = 200;
 
 export const DEFAULT_TARGETS = { kcal: 1800, protein: 60, carbs: 225, fat: 60 };
+
+// Google Health sync. The client ID is public; Google only accepts it from the
+// origins registered in the GCP project (makan-meter).
+export const GOOGLE_CLIENT_ID = '949780689105-f1afhqjrdc9aemvatebmveuod2i03tjq.apps.googleusercontent.com';
+export const HEALTH_SCOPE = 'https://www.googleapis.com/auth/googlehealth.nutrition.writeonly';
+export const HEALTH_API = 'https://health.googleapis.com/v4/users/me/dataTypes/nutrition-log/dataPoints';
