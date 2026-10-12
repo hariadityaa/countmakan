@@ -60,7 +60,7 @@ For friends. The same steps are in Settings → "Setup (API keys)". On a phone w
 1. Open [aistudio.google.com/apikey](https://aistudio.google.com/apikey).
 2. Sign in with any Google account and accept the terms if asked.
 3. Tap "Create API key". Pick the default project if asked.
-4. Copy the key. It starts with `AIza`.
+4. Copy the key.
 5. Paste it into "Gemini API key (free)", then tap "Save keys" and "Test keys".
 
 No credit card is needed. Leave DeepSeek empty unless you have a paid account. The chain skips any provider without a key.
