@@ -209,6 +209,25 @@ test.describe('with keys', () => {
     await expect(page.getByLabel('Gemini API key')).toBeHidden();
   });
 
+  test('install card appears when Chrome offers install, and Not now sticks', async ({ page }) => {
+    await open(page);
+    await expect(page.locator('#install')).toBeHidden();
+    const fire = () => page.evaluate(() => {
+      const e = new Event('beforeinstallprompt');
+      e.prompt = async () => { window.prompted = true; };
+      window.dispatchEvent(e);
+    });
+    await fire();
+    await page.getByRole('button', { name: 'Add to home screen' }).click();
+    expect(await page.evaluate(() => window.prompted)).toBe(true);
+    await expect(page.locator('#install')).toBeHidden();
+    await fire();
+    await page.getByRole('button', { name: 'Not now' }).click();
+    await page.reload();
+    await fire();
+    await expect(page.locator('#install')).toBeHidden();
+  });
+
   test('offline reload still opens the app via the service worker', async ({ page, context }) => {
     await open(page);
     await page.evaluate(async () => {
