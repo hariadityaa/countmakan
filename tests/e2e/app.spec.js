@@ -251,6 +251,24 @@ test.describe('with keys', () => {
     await context.setOffline(false);
   });
 
+  test('a new service worker shows an update banner that reloads the app', async ({ page }) => {
+    await open(page);
+    await expect(page.locator('#update')).toBeHidden();
+    await page.evaluate(async () => {
+      await navigator.serviceWorker.ready;
+      if (!navigator.serviceWorker.controller) await new Promise((r) => navigator.serviceWorker.addEventListener('controllerchange', r));
+    });
+    // First install took control: still no banner.
+    await expect(page.locator('#update')).toBeHidden();
+    await page.evaluate(() => navigator.serviceWorker.dispatchEvent(new Event('controllerchange')));
+    await expect(page.locator('#update')).toBeVisible();
+    await page.locator('nav button[data-tab=history]').click();
+    await expect(page.locator('#update')).toBeVisible();
+    await Promise.all([page.waitForEvent('load'), page.getByRole('button', { name: 'Update now' }).click()]);
+    await page.waitForSelector('body[data-ready]', { state: 'attached' });
+    await expect(page.locator('#update')).toBeHidden();
+  });
+
   test('offline estimate says there is no internet', async ({ page, context }) => {
     await open(page);
     await page.setInputFiles('#upload', new URL('./fixtures/plate.jpg', import.meta.url).pathname);

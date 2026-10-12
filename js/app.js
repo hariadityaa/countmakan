@@ -740,7 +740,29 @@ async function boot() {
   }
   if (fromLink) toast("You're all set. Take a photo of your food to start.", { ms: 6000 });
 
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  watchForUpdates();
+}
+
+// ---------- Updates ----------
+// A new deploy ships a new sw.js. It installs, takes over at once and fires
+// controllerchange. The open page still runs the old code, so offer a reload.
+// The installed app can sit in the background for days, so check on return.
+const UPDATE_CHECK_MS = 30 * 60 * 1000;
+function watchForUpdates() {
+  if (!('serviceWorker' in navigator)) return;
+  const sw = navigator.serviceWorker;
+  // The first install also fires controllerchange. That is not an update.
+  let hadController = !!sw.controller;
+  sw.addEventListener('controllerchange', () => {
+    if (hadController) $('#update').hidden = false;
+    hadController = true;
+  });
+  $('#update-btn').addEventListener('click', () => location.reload());
+  sw.register('sw.js').then((reg) => {
+    const check = () => reg.update().catch(() => {});
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
+    setInterval(check, UPDATE_CHECK_MS);
+  }).catch(() => {});
 }
 
 boot();
