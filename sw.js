@@ -5,7 +5,7 @@ const CACHE = 'countmakan-v2';
 const SHELL = [
   './', 'index.html', 'css/app.css', 'manifest.webmanifest', 'icons/icon-192.png',
   'js/app.js', 'js/config.js', 'js/prompt.js', 'js/schema.js', 'js/errors.js', 'js/chain.js',
-  'js/keys.js', 'js/io.js', 'js/db.js', 'js/image.js', 'js/messages.js', 'js/health.js', 'js/providers/gemini.js', 'js/providers/deepseek.js',
+  'js/keys.js', 'js/io.js', 'js/db.js', 'js/image.js', 'js/messages.js', 'js/health.js', 'js/favs.js', 'js/providers/gemini.js', 'js/providers/deepseek.js',
 ];
 
 self.addEventListener('install', (e) => {

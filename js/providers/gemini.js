@@ -3,7 +3,7 @@ import { SYSTEM_PROMPT, userText } from '../prompt.js';
 import { RESPONSE_SCHEMA, OutputError } from '../schema.js';
 
 export function buildRequest(model, input, key) {
-  const parts = [{ text: userText(input.text, !!input.image) }];
+  const parts = [{ text: userText(input) }];
   if (input.image) parts.push({ inline_data: { mime_type: input.image.mime, data: input.image.base64 } });
   return {
     url: `${ENDPOINTS.gemini}/${encodeURIComponent(model)}:generateContent`,

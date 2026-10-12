@@ -185,6 +185,20 @@ pre { white-space: pre-wrap; word-break: break-word; font: .875rem/1.5 var(--fon
   border: 1px solid var(--border-strong); border-radius: var(--r-pill); color: var(--text-2);
   font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
 }
+/* Portion buttons: five equal parts of one row */
+.portion { margin-top: var(--s-4); }
+.portion-label { font-weight: 600; margin: 0; }
+.portion-btns { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--s-2); }
+.portion-btns .btn { padding: 0; font-variant-numeric: tabular-nums; }
+.btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+
+/* Follow-up question: sits above the items so it is answered first */
+.ask { border: 1px solid var(--border-strong); background: var(--surface-2); border-radius: var(--r); padding: var(--s-4); margin: var(--s-3) 0; }
+.ask-title { color: var(--text-2); font-size: .875rem; font-weight: 600; margin: 0; }
+.ask-q { font-size: 1.125rem; font-weight: 600; margin: var(--s-1) 0 var(--s-2); }
+.ask input { background: var(--bg); }
+.ask .muted { margin: var(--s-2) 0 0; font-size: .875rem; }
+
 .total { font-size: 1.25rem; font-weight: 600; margin: var(--s-4) 0 0; font-variant-numeric: tabular-nums; }
 .total-sub { color: var(--text-2); font-variant-numeric: tabular-nums; }
 
@@ -239,6 +253,7 @@ pre { white-space: pre-wrap; word-break: break-word; font: .875rem/1.5 var(--fon
 
 @media (hover: hover) {
   .btn:hover, .entry:hover { background: var(--surface-2); border-color: var(--border-strong); }
+  .btn[aria-pressed="true"]:hover { background: var(--text-2); border-color: var(--text-2); }
   .btn.primary:hover, .btn.hero:hover { background: var(--text-2); border-color: var(--text-2); }
   .toast .btn:hover { background: var(--bg); border-color: var(--bg); }
   .card.promo .btn.primary:hover { background: var(--green-2); border-color: var(--green-2); }

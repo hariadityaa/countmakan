@@ -40,13 +40,16 @@ test('export then import keeps entries', () => {
     source: 'photo', text: '', thumb: 'data:image/jpeg;base64,AA',
     items: [{ name: 'Mee goreng', grams: 350, kcal: 600, protein: 18, carbs: 80, fat: 22, confidence: 0.7 }],
   };
-  const file = JSON.stringify(buildExport([entry], { kcal: 1700 }));
-  const { entries, targets } = parseImport(file);
+  const fav = { id: 'f1', name: 'Mee goreng', items: entry.items, thumb: '', ts: '2026-10-12T04:31:00.000Z' };
+  const file = JSON.stringify(buildExport([entry], { kcal: 1700 }, [fav]));
+  const { entries, targets, favourites } = parseImport(file);
   assert.equal(entries.length, 1);
   assert.equal(entries[0].model, 'gemini-3.8-flash');
   assert.equal(entries[0].day, localDay(entry.ts));
-  assert.deepEqual(entries[0].items, entry.items);
+  assert.deepEqual(entries[0].items, [{ ...entry.items[0], sugar: 0, fibre: 0, sodium: 0 }]);
   assert.deepEqual(targets, { kcal: 1700 });
+  assert.equal(favourites.length, 1);
+  assert.equal(favourites[0].name, 'Mee goreng');
 });
 
 test('import rejects foreign files and skips bad entries', () => {
@@ -59,6 +62,12 @@ test('import rejects foreign files and skips bad entries', () => {
   assert.equal(entries.length, 1);
   assert.equal(entries[0].thumb, '');
   assert.equal(entries[0].provider, 'manual');
+});
+
+test('version 1 copies without favourites still restore', () => {
+  const { entries, favourites } = parseImport(JSON.stringify({ app: 'countmakan', version: 1, entries: [] }));
+  assert.deepEqual(entries, []);
+  assert.deepEqual(favourites, []);
 });
 
 test('localDay formats local dates', () => {

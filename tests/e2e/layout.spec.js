@@ -35,7 +35,9 @@ for (const width of [360, 412]) {
     test.beforeEach(async ({ page }) => seedKeys(page));
 
     test('no button label wraps on any screen', async ({ page }) => {
-      await mockModels(page, { 'gemini-3.8-flash': { status: 200, body: geminiBody(LONG) } });
+      const body = geminiBody(LONG);
+      body.candidates[0].content.parts[0].text = JSON.stringify({ items: LONG, question: 'How much rice did you eat?', choices: ['Half plate', 'Full plate', 'Extra rice'] });
+      await mockModels(page, { 'gemini-3.8-flash': { status: 200, body } });
       await open(page, `#setup?gemini=${KEYS.gemini}&deepseek=${KEYS.deepseek}`);
       await page.evaluate(() => {
         const e = new Event('beforeinstallprompt');
@@ -49,8 +51,11 @@ for (const width of [360, 412]) {
       expect.soft(await page.evaluate(wrappedLabels), 'photo check').toEqual([]);
       await page.getByRole('button', { name: 'Count calories' }).click();
       await expect(page.locator('#editor-total')).toBeVisible();
+      await expect(page.locator('#ask')).toBeVisible();
       expect.soft(await page.evaluate(wrappedLabels), 'results').toEqual([]);
+      await page.getByRole('button', { name: '☆ Save as a favourite' }).click();
       await page.getByRole('button', { name: 'Save meal' }).click();
+      await expect(page.locator('#favs')).toBeVisible();
       expect.soft(await page.evaluate(wrappedLabels), 'saved').toEqual([]);
 
       await page.locator('#today-list .entry').first().click();

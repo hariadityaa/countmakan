@@ -9,10 +9,10 @@ Live at https://hariadityaa.github.io/countmakan/
 - Static HTML and JS. No build step and no server.
 - The browser calls the model APIs directly. API keys stay in the phone's localStorage.
 - Photos are resized to 768 px before the call. Only a 200 px thumbnail is stored, in IndexedDB.
-- Each estimate is a list of items: name, grams, kcal, protein, carbs, fat, confidence.
+- Each estimate is a list of items: name, grams, kcal, protein, carbs, fat, sugar, fibre, sodium (mg), confidence.
 - The user can edit every number before saving. Changing grams rescales the rest.
 - Each entry stores the provider, model, token usage and response time.
-- Settings has daily goals and backup ("Save a copy" / "Restore from a copy").
+- Settings has daily goals and backup ("Save a copy" / "Restore from a copy"). Backups include favourites.
 - Keys, "Test keys", the setup link and the provider order sit in a folded "Setup (API keys)" section. It includes a free Gemini key guide and a folded optional DeepSeek field.
 
 ## Screens
@@ -24,6 +24,9 @@ Live at https://hariadityaa.github.io/countmakan/
 - Typing a description works without any photo.
 - Errors are one plain sentence. The per-provider detail is behind a "Details" toggle.
 - Items under 0.6 confidence get a "Please check this" badge.
+- Follow-up question: when an item is under 0.6 confidence, the model may ask one short question with 2-4 answers. Tapping an answer, or typing one, re-runs the estimate with it. That costs one more call. There is at most one round. Skipping it is fine.
+- Portion buttons (½, ¾, All, 1½, 2×) scale every item from the first estimate. Taps never compound. A grams edit at any portion carries back to "All".
+- Favourites: "Save as a favourite" in the editor. They show on Today under "Your favourites". Tapping one opens it as a new meal with no API call. "I ate this again" on a saved meal does the same.
 - Delete is immediate, with an 8 s "Undo".
 
 ## Provider chain
@@ -35,13 +38,21 @@ Defined in `js/config.js`. Logic never names a model.
 | 2 | Gemini | `gemini-3.5-flash-lite` |
 | 3 | DeepSeek | `deepseek-flash` |
 
-DeepSeek is paid, so it goes last. Its answer is capped at 1,000 tokens.
+DeepSeek is paid, so it goes last. Its answer is capped at 1,500 tokens.
 
 - The app falls back on 429, 5xx, network errors, a 60 s timeout or unparseable output.
 - It stops on other 4xx errors, such as a bad key or bad request.
 - It skips a provider with no key, or one whose `supports` list lacks the input type.
 - Gemini uses the native `generateContent` endpoint with `responseSchema`. Its OpenAI-compatible endpoint reportedly fails CORS.
 - DeepSeek uses `chat/completions` with `response_format: json_object`.
+
+## Accuracy
+- Each estimate sends up to 20 portions from the user's favourites as references (name, grams, kcal). The newest favourite wins on a name clash. Favourites are portions the user has checked, so they ground repeat dishes.
+- HPB's food composition database was the first choice for a reference table. It isn't reachable from the build container, and dish values weren't copied from memory. Revisit if a verified table becomes available.
+- Sugar is total sugars. Fibre is dietary fibre. Sodium is in mg.
+- Default goals: sugar 50 g, fibre 25 g, sodium 2,000 mg. Sodium follows the [WHO](https://www.who.int/news-room/fact-sheets/detail/salt-reduction) limit of under 2,000 mg a day. The WHO sugar limit (under 10% of energy, about 50 g at 2,000 kcal) is for free sugars, so a total-sugar bar runs high on fruit and milk. Fibre is a goal to reach, so going past it isn't shown as over.
+- Meals saved before this change have no sugar, fibre or sodium. They count as zero.
+- Google Health still gets only kcal, protein, carbs and fat.
 
 ## Using your own free Gemini key
 For friends. The same steps are in Settings → "Setup (API keys)". On a phone with no keys, "Use my own key" on the Today tab opens them.
@@ -107,6 +118,7 @@ Serve locally with any static server, e.g. `python3 -m http.server`.
 - DeepSeek is optional. Hari has a paid account. Friends can run on a free Gemini key alone.
 - OpenAI and Claude adapters were considered for friends and skipped. A free Gemini key covers most people.
 - Workers AI was dropped because it needs Cloudflare.
-- Defaults: no daily request cap, English UI, targets for kcal, protein, carbs and fat.
+- Defaults: no daily request cap, English UI, targets for kcal, protein, carbs, fat, sugar, fibre and sodium.
+- Favourites live in localStorage (`countmakan.favourites`), separate from meals, so deleting a meal keeps its favourite.
 - Eval (Nutrition5k plus weighed home meals) is deferred.
 - Google Health sync: one log per meal, meal type from the clock, new meals only. The Google Fit API was rejected: closed to new projects and sunset in 2026.
