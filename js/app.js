@@ -9,6 +9,7 @@ import { describeFailure, MSG } from './messages.js';
 import * as db from './db.js';
 import * as health from './health.js';
 import { ringSvg, weekChartSvg, daySeries, macroSplit } from './charts.js';
+import { suggestTargets, goalHint, ACTIVITY, GOAL_CHOICES } from './suggest.js';
 
 const $ = (sel) => document.querySelector(sel);
 const GOALS = ['kcal', 'protein', 'carbs', 'fat', 'sugar', 'fibre', 'sodium'];
@@ -777,8 +778,67 @@ function onSaveTargets() {
     if (v > 0) state.targets[m] = v;
   }
   localStorage.setItem('countmakan.targets', JSON.stringify(state.targets));
+  for (const i of document.querySelectorAll('#targets input')) i.classList.remove('suggested');
   renderSummary();
   toast('Goals saved ✓');
+}
+
+// ---------- Suggest goals ----------
+const PROFILE_FIELDS = ['sex', 'age', 'height', 'weight', 'activity', 'goal'];
+const SUGGEST_NAMES = { kcal: 'Calories', protein: 'Protein', carbs: 'Carbs', fat: 'Fat', sugar: 'Sugar', fibre: 'Fibre', sodium: 'Sodium' };
+
+function loadProfile() {
+  try {
+    return JSON.parse(localStorage.getItem('countmakan.profile')) || {};
+  } catch {
+    return {};
+  }
+}
+
+function readProfile() {
+  return Object.fromEntries(PROFILE_FIELDS.map((f) => [f, $(`#p-${f}`).value]));
+}
+
+function renderSuggestForm() {
+  const opts = (map) => [el('option', { value: '' }, 'Choose'), ...Object.entries(map).map(([k, v]) => el('option', { value: k }, v.label))];
+  $('#p-activity').replaceChildren(...opts(ACTIVITY));
+  $('#p-goal').replaceChildren(...opts(GOAL_CHOICES));
+  const p = loadProfile();
+  for (const f of PROFILE_FIELDS) if (p[f] != null) $(`#p-${f}`).value = p[f];
+  updateGoalHint();
+}
+
+// Shows a BMI hint and pre-picks the goal only while the user hasn't chosen one.
+function updateGoalHint() {
+  const w = Number($('#p-weight').value);
+  const h = Number($('#p-height').value);
+  if (!(w > 0 && h > 0)) {
+    $('#p-hint').textContent = '';
+    return;
+  }
+  const hint = goalHint(w, h);
+  $('#p-hint').textContent = hint.text;
+  if (!$('#p-goal').value) $('#p-goal').value = hint.goal;
+}
+
+// Fills the goal boxes but does not save. The user can change any number, then taps Save goals.
+function onSuggest() {
+  const profile = readProfile();
+  try {
+    const { targets, reasons } = suggestTargets(profile);
+    localStorage.setItem('countmakan.profile', JSON.stringify(profile));
+    for (const m of GOALS) {
+      const input = $(`#t-${m}`);
+      input.value = targets[m];
+      input.classList.add('suggested');
+    }
+    $('#suggest-reasons').replaceChildren(...GOALS.map((m) => el('li', {}, `${SUGGEST_NAMES[m]} ${fmt(targets[m])} ${m === 'kcal' ? 'kcal' : m === 'sodium' ? 'mg' : 'g'}: ${reasons[m]}`)));
+    setStatus($('#suggest-status'), 'Numbers filled in above. Change any of them, then tap Save goals.');
+    $('#targets').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } catch (e) {
+    $('#suggest-reasons').replaceChildren();
+    setStatus($('#suggest-status'), e.message, true);
+  }
 }
 
 function onExport() {
@@ -871,6 +931,10 @@ async function boot() {
   $('#make-link').addEventListener('click', onMakeLink);
   $('#own-key').addEventListener('click', openOwnKeySetup);
   $('#save-targets').addEventListener('click', onSaveTargets);
+  $('#suggest-btn').addEventListener('click', onSuggest);
+  $('#p-weight').addEventListener('input', updateGoalHint);
+  $('#p-height').addEventListener('input', updateGoalHint);
+  renderSuggestForm();
   $('#export').addEventListener('click', onExport);
   $('#import').addEventListener('change', onImport);
   $('#install-yes').addEventListener('click', onInstall);

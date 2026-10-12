@@ -152,3 +152,28 @@ test('sugar, fibre and sodium show per item, in the total and on Today', async (
   await expect(page.locator('#summary')).toContainText('702 mg of 2,000 mg');
   await expect(page.locator('#summary')).toContainText('2 g of 25 g');
 });
+
+test('suggest fills the goals without saving, and the user can override before saving', async ({ page }) => {
+  await open(page);
+  await page.locator('nav button[data-tab=settings]').click();
+  await page.getByText('Not sure? Suggest for me').click();
+  await page.getByRole('button', { name: 'Suggest goals' }).click();
+  await expect(page.locator('#suggest-status')).toHaveText('Choose male or female.');
+
+  await page.selectOption('#p-sex', 'female');
+  await page.fill('#p-age', '62');
+  await page.fill('#p-height', '155');
+  await page.fill('#p-weight', '58');
+  await page.selectOption('#p-activity', 'walking');
+  await expect(page.locator('#p-hint')).toContainText('BMI 24.1');
+  await expect(page.locator('#p-goal')).toHaveValue('keep');
+  await page.getByRole('button', { name: 'Suggest goals' }).click();
+  await expect(page.locator('#t-kcal')).toHaveValue('1480');
+  await expect(page.locator('#t-protein')).toHaveValue('58');
+  expect(await page.evaluate(() => localStorage.getItem('countmakan.targets'))).toBeNull();
+
+  await page.fill('#t-kcal', '1550');
+  await page.getByRole('button', { name: 'Save goals' }).click();
+  const saved = JSON.parse(await page.evaluate(() => localStorage.getItem('countmakan.targets')));
+  expect(saved).toMatchObject({ kcal: 1550, protein: 58, carbs: 202, fat: 49 });
+});

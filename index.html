@@ -119,6 +119,25 @@
         <h2>Daily goals</h2>
         <div class="grid2" id="targets"></div>
         <button type="button" class="btn primary" id="save-targets">Save goals</button>
+        <details id="suggest" class="guide">
+          <summary>Not sure? Suggest for me</summary>
+          <p class="muted">If a doctor gave you goals, or you have kidney disease, use the doctor's numbers instead.</p>
+          <div class="grid2">
+            <div><label for="p-sex">Sex</label>
+              <select id="p-sex"><option value="">Choose</option><option value="female">Female</option><option value="male">Male</option></select></div>
+            <div><label for="p-age">Age</label><input id="p-age" type="number" inputmode="numeric" min="18" max="100"></div>
+            <div><label for="p-height">Height (cm)</label><input id="p-height" type="number" inputmode="numeric" min="120" max="220"></div>
+            <div><label for="p-weight">Weight (kg)</label><input id="p-weight" type="number" inputmode="decimal" min="30" max="250" step="any"></div>
+          </div>
+          <label for="p-activity">How active are you?</label>
+          <select id="p-activity"></select>
+          <label for="p-goal">What do you want?</label>
+          <select id="p-goal"></select>
+          <p class="muted" id="p-hint"></p>
+          <button type="button" class="btn primary" id="suggest-btn">Suggest goals</button>
+          <p class="status" id="suggest-status" role="status"></p>
+          <ul class="muted" id="suggest-reasons"></ul>
+        </details>
       </div>
 
       <div class="card">

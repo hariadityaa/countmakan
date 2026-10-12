@@ -13,6 +13,7 @@ Live at https://hariadityaa.github.io/countmakan/
 - The user can edit every number before saving. Changing grams rescales the rest.
 - Each entry stores the provider, model, token usage and response time.
 - Settings has daily goals and backup ("Save a copy" / "Restore from a copy"). Backups include favourites.
+- "Not sure? Suggest for me" under Daily goals fills every goal from sex, age, height, weight, activity and what the user wants. It never saves on its own. The user can change any number, then taps "Save goals".
 - Keys, "Test keys", the setup link and the provider order sit in a folded "Setup (API keys)" section. It includes a free Gemini key guide and a folded optional DeepSeek field.
 
 ## Screens
@@ -119,6 +120,8 @@ Serve locally with any static server, e.g. `python3 -m http.server`.
 - OpenAI and Claude adapters were considered for friends and skipped. A free Gemini key covers most people.
 - Workers AI was dropped because it needs Cloudflare.
 - Defaults: no daily request cap, English UI, targets for kcal, protein, carbs, fat, sugar, fibre and sodium.
+- Goal suggestions use a formula on the phone, not a model call. Calories: Mifflin-St Jeor times activity (1.2, 1.375 or 1.55), minus 500 to lose or plus 300 to gain, never below 1,200 kcal for women or 1,500 for men. Protein: 1.0 g/kg, 1.2 g/kg from 65 (PROT-AGE). Fat: 30%. Carbs: the rest. Sugar: 10% of calories. Fibre: 14 g per 1,000 kcal. Sodium: 2,000 mg. The goal hint uses HPB's Asian BMI cut-offs of 23 and 27.5.
+- No condition-specific goals, such as for diabetes. Those are left to doctors.
 - Favourites live in localStorage (`countmakan.favourites`), separate from meals, so deleting a meal keeps its favourite.
 - Eval (Nutrition5k plus weighed home meals) is deferred.
 - Google Health sync: one log per meal, meal type from the clock, new meals only. The Google Fit API was rejected: closed to new projects and sunset in 2026.
