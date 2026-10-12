@@ -19,7 +19,8 @@ jobs:
         run: |
           mkdir _site
           cp -r index.html manifest.webmanifest sw.js css js icons _site/
-          sed -i "s/countmakan-v1/countmakan-${GITHUB_SHA::7}/" _site/sw.js
+          sed -i -E "s/countmakan-v[0-9]+/countmakan-${GITHUB_SHA::7}/" _site/sw.js
+          grep -q "'countmakan-${GITHUB_SHA::7}'" _site/sw.js || { echo "sw.js cache name was not stamped"; exit 1; }
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
