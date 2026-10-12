@@ -53,3 +53,14 @@ test('deepseek extractText', () => {
   assert.equal(deepseek.extractText({ choices: [{ message: { content: '{}' } }] }), '{}');
   assert.throws(() => deepseek.extractText({ choices: [] }), OutputError);
 });
+
+test('deepseek extractText rejects an answer cut off at the token limit', () => {
+  const json = { choices: [{ finish_reason: 'length', message: { content: '{"items":[{"name":"ri' } }] };
+  assert.throws(() => deepseek.extractText(json), /cut off/);
+});
+
+test('deepseek extractUsage keeps reasoning tokens apart', () => {
+  const usage = { prompt_tokens: 1500, completion_tokens: 600, completion_tokens_details: { reasoning_tokens: 400 } };
+  assert.deepEqual(deepseek.extractUsage({ usage }), { input: 1500, output: 600, reasoning: 400 });
+  assert.deepEqual(deepseek.extractUsage({ usage: { prompt_tokens: 10, completion_tokens: 5 } }), { input: 10, output: 5 });
+});
