@@ -6,21 +6,27 @@ import * as deepseek from './providers/deepseek.js';
 
 export const ADAPTERS = { gemini, deepseek };
 
-// One call to one provider. Returns { items }.
-export async function callProvider(step, input, key, { fetchFn = fetch, timeoutMs = TIMEOUT_MS } = {}) {
+// One call to one provider. Returns { items, usage }.
+// signal lets the caller cancel. A cancel is never retried.
+export async function callProvider(step, input, key, { fetchFn = fetch, timeoutMs = TIMEOUT_MS, signal } = {}) {
   const adapter = ADAPTERS[step.provider];
   if (!adapter) throw new ProviderError(`Unknown provider ${step.provider}`);
+  if (signal?.aborted) throw new ProviderError('Cancelled', { kind: 'cancel' });
   const { url, init } = adapter.buildRequest(step.model, input, key);
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  const onCancel = () => ctrl.abort();
+  signal?.addEventListener('abort', onCancel);
   let res;
   try {
     res = await fetchFn(url, { ...init, signal: ctrl.signal });
   } catch (e) {
-    const msg = e?.name === 'AbortError' ? 'Timed out' : `Network error: ${e?.message || e}`;
-    throw new ProviderError(msg, { retryable: true });
+    if (signal?.aborted) throw new ProviderError('Cancelled', { kind: 'cancel' });
+    if (e?.name === 'AbortError') throw new ProviderError('Timed out', { retryable: true, kind: 'timeout' });
+    throw new ProviderError(`Network error: ${e?.message || e}`, { retryable: true, kind: 'network' });
   } finally {
     clearTimeout(timer);
+    signal?.removeEventListener('abort', onCancel);
   }
   let json = null;
   try {
@@ -29,18 +35,19 @@ export async function callProvider(step, input, key, { fetchFn = fetch, timeoutM
     // Non-JSON body. Handled below.
   }
   if (!res.ok) throw httpError(res.status, adapter.errorDetail(json));
-  if (!json) throw new ProviderError('Response was not JSON', { retryable: true });
+  if (!json) throw new ProviderError('Response was not JSON', { retryable: true, kind: 'output' });
   try {
-    return parseEstimate(adapter.extractText(json));
+    return { ...parseEstimate(adapter.extractText(json)), usage: adapter.extractUsage?.(json) || null };
   } catch (e) {
-    if (e instanceof OutputError) throw new ProviderError(e.message, { retryable: true });
+    if (e instanceof OutputError) throw new ProviderError(e.message, { retryable: true, kind: 'output' });
     throw e;
   }
 }
 
-// Walks the chain. Returns { items, provider, model, attempts }.
+// Walks the chain. Returns { items, usage, provider, model, attempts }.
 // attempts lists every step tried or skipped, for display and debugging.
-export async function estimate(input, keys, { chain = CHAIN, fetchFn = fetch, timeoutMs = TIMEOUT_MS } = {}) {
+// onAttempt(step, index) fires before each real call, so the UI can say "trying another way".
+export async function estimate(input, keys, { chain = CHAIN, fetchFn = fetch, timeoutMs = TIMEOUT_MS, signal, onAttempt } = {}) {
   const kind = input.image ? 'image' : 'text';
   const attempts = [];
   for (const step of chain) {
@@ -54,13 +61,14 @@ export async function estimate(input, keys, { chain = CHAIN, fetchFn = fetch, ti
       continue;
     }
     try {
-      const out = await callProvider(step, input, key, { fetchFn, timeoutMs });
+      onAttempt?.(step, attempts.filter((a) => !a.skipped).length);
+      const out = await callProvider(step, input, key, { fetchFn, timeoutMs, signal });
       attempts.push({ ...step, ok: true });
       return { ...out, provider: step.provider, model: step.model, attempts };
     } catch (e) {
-      attempts.push({ ...step, error: e.message, status: e.status || 0 });
+      attempts.push({ ...step, error: e.message, status: e.status || 0, kind: e.kind || 'other' });
       if (!(e instanceof ProviderError) || !e.retryable) {
-        const err = new ProviderError(`${step.model}: ${e.message}`, { status: e.status });
+        const err = new ProviderError(`${step.model}: ${e.message}`, { status: e.status, kind: e.kind });
         err.attempts = attempts;
         throw err;
       }

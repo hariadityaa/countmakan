@@ -4,8 +4,9 @@
 // network errors, timeouts and unparseable output.
 export const CHAIN = [
   { provider: 'gemini', model: 'gemini-3.8-flash', supports: ['text', 'image'] },
-  { provider: 'deepseek', model: 'deepseek-flash', supports: ['text', 'image'] },
   { provider: 'gemini', model: 'gemini-3.5-flash-lite', supports: ['text', 'image'] },
+  // Paid, so last. Free Flash-Lite absorbs most Flash 503s.
+  { provider: 'deepseek', model: 'deepseek-flash', supports: ['text', 'image'] },
 ];
 
 export const ENDPOINTS = {
@@ -17,7 +18,11 @@ export const PROVIDER_LABELS = { gemini: 'Gemini', deepseek: 'DeepSeek' };
 
 export const TIMEOUT_MS = 60000;
 
-export const IMAGE_MAX_PX = 1024;
+// Caps paid output. A 10-item answer is about 600 tokens.
+export const MAX_OUTPUT_TOKENS = 1000;
+
+// 768 px keeps image tokens down. Plates stay legible at this size.
+export const IMAGE_MAX_PX = 768;
 export const THUMB_MAX_PX = 200;
 
 export const DEFAULT_TARGETS = { kcal: 1800, protein: 60, carbs: 225, fat: 60 };
