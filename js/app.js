@@ -726,6 +726,7 @@ function renderSettings() {
   $('#targets').replaceChildren(...GOALS.map((m) => el('div', {},
     el('label', { for: `t-${m}` }, GOAL_LABELS[m]),
     el('input', { id: `t-${m}`, type: 'number', inputmode: 'numeric', min: '0', value: state.targets[m] }))));
+  syncSaveTargets();
   health.preload().catch(() => {});
   renderHealth();
   if (!state.keys.gemini) $('#gemini-guide').open = true;
@@ -780,7 +781,21 @@ function onSaveTargets() {
   localStorage.setItem('countmakan.targets', JSON.stringify(state.targets));
   for (const i of document.querySelectorAll('#targets input')) i.classList.remove('suggested');
   renderSummary();
+  syncSaveTargets();
   toast('Goals saved ✓');
+}
+
+// Save is only live when a box differs from the saved goals. Otherwise it reads "Saved ✓".
+// Mirrors onSaveTargets: a blank or zero box is ignored, so it doesn't count as a change.
+function syncSaveTargets() {
+  const dirty = GOALS.some((m) => {
+    const v = Number($(`#t-${m}`).value);
+    return v > 0 && v !== state.targets[m];
+  });
+  const btn = $('#save-targets');
+  btn.disabled = !dirty;
+  btn.classList.toggle('primary', dirty);
+  btn.textContent = dirty ? 'Save goals' : 'Saved ✓';
 }
 
 // ---------- Suggest goals ----------
@@ -832,6 +847,7 @@ function onSuggest() {
       input.value = targets[m];
       input.classList.add('suggested');
     }
+    syncSaveTargets();
     $('#suggest-reasons').replaceChildren(...GOALS.map((m) => el('li', {}, `${SUGGEST_NAMES[m]} ${fmt(targets[m])} ${m === 'kcal' ? 'kcal' : m === 'sodium' ? 'mg' : 'g'}: ${reasons[m]}`)));
     setStatus($('#suggest-status'), 'Numbers filled in above. Change any of them, then tap Save goals.');
     $('#targets').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -931,6 +947,7 @@ async function boot() {
   $('#make-link').addEventListener('click', onMakeLink);
   $('#own-key').addEventListener('click', openOwnKeySetup);
   $('#save-targets').addEventListener('click', onSaveTargets);
+  $('#targets').addEventListener('input', syncSaveTargets);
   $('#suggest-btn').addEventListener('click', onSuggest);
   $('#p-weight').addEventListener('input', updateGoalHint);
   $('#p-height').addEventListener('input', updateGoalHint);
