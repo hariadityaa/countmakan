@@ -504,6 +504,38 @@ async function onImport(ev) {
   }
 }
 
+// ---------- Install ----------
+// Chrome's menu install says "already installed" for any page on an origin that has an
+// installed app (turisfasih on hariadityaa.github.io). The page prompt checks scope correctly.
+let installEvent = null;
+const INSTALL_DECLINED = 'countmakan.installDeclined';
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches;
+
+function renderInstall() {
+  let declined = false;
+  try { declined = localStorage.getItem(INSTALL_DECLINED) === '1'; } catch { /* storage blocked */ }
+  $('#install').hidden = !installEvent || declined || isStandalone();
+}
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  installEvent = e;
+  renderInstall();
+});
+window.addEventListener('appinstalled', () => { installEvent = null; renderInstall(); });
+
+async function onInstall() {
+  const e = installEvent;
+  installEvent = null;
+  renderInstall();
+  if (e) await e.prompt().catch(() => {});
+}
+
+function onDeclineInstall() {
+  try { localStorage.setItem(INSTALL_DECLINED, '1'); } catch { /* storage blocked */ }
+  renderInstall();
+}
+
 // ---------- Boot ----------
 async function boot() {
   const fromLink = consumeSetupLink();
@@ -530,6 +562,9 @@ async function boot() {
   $('#save-targets').addEventListener('click', onSaveTargets);
   $('#export').addEventListener('click', onExport);
   $('#import').addEventListener('change', onImport);
+  $('#install-yes').addEventListener('click', onInstall);
+  $('#install-no').addEventListener('click', onDeclineInstall);
+  renderInstall();
 
   showStep('add');
   renderToday();
