@@ -21,7 +21,7 @@ export function parseImport(text) {
     throw new Error('File is not valid JSON');
   }
   if (!data || data.app !== 'countmakan' || !Array.isArray(data.entries)) {
-    throw new Error('Not a countmakan export');
+    throw new Error('Not a Makan Meter export');
   }
   const entries = [];
   for (const e of data.entries) {

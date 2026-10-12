@@ -475,7 +475,7 @@ function onSaveTargets() {
 function onExport() {
   const data = buildExport(state.entries, state.targets);
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const a = el('a', { href: URL.createObjectURL(blob), download: `countmakan-${localDay(new Date())}.json` });
+  const a = el('a', { href: URL.createObjectURL(blob), download: `makan-meter-${localDay(new Date())}.json` });
   document.body.append(a);
   a.click();
   a.remove();
@@ -499,7 +499,7 @@ async function onImport(ev) {
     renderSettings();
     setStatus($('#io-status'), `Restored ${entries.length} meals.`);
   } catch {
-    setStatus($('#io-status'), "That file isn't a countmakan copy. Choose another file.", true);
+    setStatus($('#io-status'), "That file isn't a Makan Meter copy. Choose another file.", true);
   }
 }
 

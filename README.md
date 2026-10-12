@@ -1,6 +1,6 @@
-# countmakan
+# Makan Meter
 
-Calorie counter PWA for Hari's parents. Take a photo, upload one or type a description. Get calories, protein, carbs and fat back.
+Calorie counter PWA for Hari's parents. Take a photo, upload one or type a description. Get calories, protein, carbs and fat back. The repo is still named `countmakan`.
 
 Live at https://hariadityaa.github.io/countmakan/
 
@@ -51,6 +51,7 @@ DeepSeek is paid, so it goes last. Its answer is capped at 1,000 tokens.
 Treat the setup link like a password. Anyone holding it can spend the keys.
 
 ## Data and privacy
+- Storage keys, the IndexedDB name, the cache name and the export `app` field stay `countmakan`. Renaming them would orphan saved data.
 - The free Gemini tier may use inputs, including photos, to improve Google products ([terms](https://ai.google.dev/gemini-api/terms)). Hari accepted this. Turning on billing for the key stops it.
 - Gemini's free-tier caps aren't published. Secondary sources put Flash at about 20 requests a day and Flash-Lite at about 500. Check AI Studio for the real numbers.
 

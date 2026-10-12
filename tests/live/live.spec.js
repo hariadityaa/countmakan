@@ -121,7 +121,7 @@ test.afterAll(async () => {
     ? `| ${r.id} | failed | | | | ${r.error.replace(/\n/g, '<br>')} |`
     : `| ${r.id} | ${r.model} | ${r.seconds} s | ${tokens(r.usage)} | ${r.kcal} kcal, P ${r.protein} C ${r.carbs} F ${r.fat} | ${r.plausible ? 'ok' : `**check** (expected ${r.range.join('–')})`} |`));
   const md = [
-    `### countmakan live run`,
+    `### Makan Meter live run`,
     `Build: \`${results.find((r) => r.id === 'build')?.cache}\``,
     `Mode: ${DEEPSEEK_ONLY ? 'DeepSeek only' : 'full chain'}`,
     `Most output tokens: ${outs.length ? Math.max(...outs) : 'n/a'} of ${MAX_OUTPUT_TOKENS} allowed`,
