@@ -9,6 +9,7 @@ export const RESPONSE_SCHEMA = {
         type: 'OBJECT',
         properties: {
           name: { type: 'STRING' },
+          detail: { type: 'STRING' },
           grams: { type: 'NUMBER' },
           kcal: { type: 'NUMBER' },
           protein: { type: 'NUMBER' },
@@ -56,6 +57,8 @@ export function normalizeItem(it) {
   if (!it || typeof it !== 'object') return null;
   const name = String(it.name ?? '').trim() || 'Unknown item';
   const out = { name };
+  const detail = typeof it.detail === 'string' ? it.detail.trim() : '';
+  if (detail) out.detail = detail;
   for (const f of NUM_FIELDS) {
     const n = toNum(it[f]);
     out[f] = Number.isFinite(n) && n > 0 ? round1(n) : 0;
@@ -85,4 +88,20 @@ export function scaleItem(item, newGrams) {
     carbs: round1(item.carbs * r),
     fat: round1(item.fat * r),
   };
+}
+
+// Short display name. Drops bracketed notes and anything after the first comma,
+// so older verbose names like "Dried shrimp (hae bee), fried" read as "Dried shrimp".
+export function shortName(name) {
+  const s = String(name ?? '').replace(/\([^)]*\)/g, '').split(',')[0].replace(/\s+/g, ' ').trim();
+  return s || String(name ?? '').trim();
+}
+
+// List title for a meal: the two biggest items by calories.
+// more is how many other items the meal has.
+export function mealTitle(items, fallback = 'Meal') {
+  const named = (items || []).filter((i) => shortName(i.name));
+  if (!named.length) return { title: (fallback || '').trim() || 'Meal', more: 0 };
+  const top = [...named].sort((a, b) => (Number(b.kcal) || 0) - (Number(a.kcal) || 0)).slice(0, 2);
+  return { title: top.map((i) => shortName(i.name)).join(', '), more: named.length - top.length };
 }
