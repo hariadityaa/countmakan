@@ -4,10 +4,11 @@
 // Fat: 30% of calories. Carbs: the rest.
 // Sugar: under 10% of calories (WHO). Fibre: 14 g per 1000 kcal (US DGA). Sodium: 2000 mg (WHO).
 
+// Factors follow the Harris-Benedict scale. Step bands follow Tudor-Locke & Bassett (2004).
 export const ACTIVITY = {
-  sitting: { factor: 1.2, label: 'Mostly sitting' },
-  walking: { factor: 1.375, label: 'Walk most days' },
-  exercise: { factor: 1.55, label: 'Exercise often' },
+  sitting: { factor: 1.2, label: 'Mostly sitting: under 5,000 steps a day' },
+  walking: { factor: 1.375, label: 'Lightly active: 5,000–10,000 steps, or exercise 1–3 days a week' },
+  exercise: { factor: 1.55, label: 'Active: over 10,000 steps, or exercise 3–5 days a week' },
 };
 
 export const GOAL_CHOICES = {
