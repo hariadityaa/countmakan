@@ -3,9 +3,13 @@
 import { test, expect } from '@playwright/test';
 import { mkdir, writeFile, appendFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { MAX_OUTPUT_TOKENS } from '../../js/config.js';
 
 const OUT = process.env.LIVE_OUT || 'live-results';
 const UA = 'countmakan-e2e/1.0 (https://github.com/hariadityaa/countmakan)';
+// Loads only the DeepSeek key, so the chain skips Gemini and every case runs on DeepSeek.
+const DEEPSEEK_ONLY = process.env.DEEPSEEK_ONLY === '1';
+const KEY_ENV = DEEPSEEK_ONLY ? ['DEEPSEEK_API_KEY'] : ['GEMINI_API_KEY', 'DEEPSEEK_API_KEY'];
 
 // Plausible calorie ranges for a typical serving. Outside the range is flagged, not failed.
 const CASES = [
@@ -50,12 +54,12 @@ function readLatestEntry() {
 
 test.beforeAll(async () => {
   await mkdir(OUT, { recursive: true });
-  for (const k of ['GEMINI_API_KEY', 'DEEPSEEK_API_KEY']) if (!process.env[k]) throw new Error(`${k} is not set`);
+  for (const k of KEY_ENV) if (!process.env[k]) throw new Error(`${k} is not set`);
 });
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript((keys) => localStorage.setItem('countmakan.keys', JSON.stringify(keys)), {
-    gemini: process.env.GEMINI_API_KEY,
+    ...(DEEPSEEK_ONLY ? {} : { gemini: process.env.GEMINI_API_KEY }),
     deepseek: process.env.DEEPSEEK_API_KEY,
   });
 });
@@ -105,17 +109,22 @@ for (const c of CASES) {
       kcal: Math.round(t.kcal), protein: Math.round(t.protein), carbs: Math.round(t.carbs), fat: Math.round(t.fat),
       range: c.range, plausible, items: e.items.map((i) => `${i.name} ${i.grams} g ${i.kcal} kcal (conf ${i.confidence})`),
     });
+    if (DEEPSEEK_ONLY) expect(e.provider).toBe('deepseek');
   });
 }
 
 test.afterAll(async () => {
   await writeFile(join(OUT, 'results.json'), JSON.stringify(results, null, 2));
+  const tokens = (u) => (u ? `${u.input} in / ${u.output} out${u.reasoning ? ` (${u.reasoning} reasoning)` : ''}` : 'n/a');
+  const outs = results.filter((r) => r.usage).map((r) => r.usage.output);
   const rows = results.filter((r) => r.id !== 'build').map((r) => (r.error
     ? `| ${r.id} | failed | | | | ${r.error.replace(/\n/g, '<br>')} |`
-    : `| ${r.id} | ${r.model} | ${r.seconds} s | ${r.usage ? `${r.usage.input} in / ${r.usage.output} out` : 'n/a'} | ${r.kcal} kcal, P ${r.protein} C ${r.carbs} F ${r.fat} | ${r.plausible ? 'ok' : `**check** (expected ${r.range.join('–')})`} |`));
+    : `| ${r.id} | ${r.model} | ${r.seconds} s | ${tokens(r.usage)} | ${r.kcal} kcal, P ${r.protein} C ${r.carbs} F ${r.fat} | ${r.plausible ? 'ok' : `**check** (expected ${r.range.join('–')})`} |`));
   const md = [
     `### countmakan live run`,
     `Build: \`${results.find((r) => r.id === 'build')?.cache}\``,
+    `Mode: ${DEEPSEEK_ONLY ? 'DeepSeek only' : 'full chain'}`,
+    `Most output tokens: ${outs.length ? Math.max(...outs) : 'n/a'} of ${MAX_OUTPUT_TOKENS} allowed`,
     '',
     '| Case | Answered by | Time | Tokens | Totals | Plausible |',
     '|---|---|---|---|---|---|',

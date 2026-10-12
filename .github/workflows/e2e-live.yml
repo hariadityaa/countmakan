@@ -1,6 +1,7 @@
 name: e2e-live
 # Real model calls against the deployed site. Each run spends about 4 Gemini
 # Flash calls from a ~20/day free quota, and DeepSeek credit on fallback.
+# With deepseek_only, about 4 DeepSeek calls and no Gemini quota.
 # Runs by hand, or when this file changes on main. GitHub did not register
 # the workflow for manual runs while it had no push trigger.
 on:
@@ -12,6 +13,10 @@ on:
       expect_sha:
         description: Fail unless the live sw.js carries this commit (optional)
         required: false
+      deepseek_only:
+        description: Load only the DeepSeek key, so every case runs on DeepSeek
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -43,6 +48,7 @@ jobs:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           EXPECT_SHA: ${{ inputs.expect_sha || github.sha }}
           LIVE_OUT: ${{ github.workspace }}/live-results
+          DEEPSEEK_ONLY: ${{ inputs.deepseek_only && '1' || '' }}
         run: npx playwright test -c tests/live
       - uses: actions/upload-artifact@v4
         if: always()
