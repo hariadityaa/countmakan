@@ -99,6 +99,10 @@ function showTab(name) {
 // One step at a time: add, compose, loading, failure or editor.
 function showStep(step) {
   for (const id of ['add', 'compose', 'loading', 'failure', 'editor']) $(`#${id}`).hidden = id !== step;
+  // While waiting, the rest of the app can't be tapped or reached by keyboard.
+  const busy = step === 'loading';
+  document.body.classList.toggle('is-busy', busy);
+  for (const n of [$('header.top'), $('main')]) n.inert = busy;
   if (step === 'add') $('#add').hidden = !hasKeys();
   // Summary and meal list only on the home step, so each step has one job.
   $('#summary').hidden = step !== 'add';
@@ -213,6 +217,22 @@ function setLoading(text, hint) {
   $('#loading-hint').textContent = hint;
 }
 
+// Each step reflects a real event: request sent, waiting for the answer, answer shown.
+function setStep(id, status, label) {
+  const li = $(`#step-${id}`);
+  li.className = status;
+  if (label) li.querySelector('.label').textContent = label;
+}
+
+// Keeps the phone from locking mid-wait, which can pause the request.
+async function keepAwake() {
+  try {
+    return await navigator.wakeLock?.request('screen');
+  } catch {
+    return null; // Not supported, or refused. The wait still works.
+  }
+}
+
 async function onEstimate() {
   const text = $('#meal-text').value.trim();
   if (!state.photo && !text) {
@@ -220,22 +240,36 @@ async function onEstimate() {
     $('#compose-error').textContent = 'Please type what you ate.';
     return;
   }
+  const photo = !!state.photo;
   const img = $('#loading-img');
-  if (state.photo) img.src = `data:${state.photo.mime};base64,${state.photo.base64}`;
+  if (photo) img.src = `data:${state.photo.mime};base64,${state.photo.base64}`;
   else img.removeAttribute('src');
-  setLoading(state.photo ? 'Looking at your food…' : 'Counting calories…', 'This usually takes under 30 seconds.');
+  $('#loading-photo').hidden = !photo;
+  setLoading('Counting calories…', 'This usually takes under 30 seconds.');
+  setStep('sent', 'now', photo ? 'Sending your photo' : 'Sending your description');
+  setStep('look', 'todo', photo ? 'Looking at your food' : 'Reading your description');
+  setStep('done', 'todo');
+  $('#elapsed').textContent = '0';
   showStep('loading');
+  $('#cancel-estimate').focus();
 
   const abort = new AbortController();
   state.abort = abort;
-  const slow = setTimeout(() => setLoading('Still working…', 'Sorry for the wait. Please keep this screen open.'), SLOW_MS);
   const started = performance.now();
+  const tick = setInterval(() => { $('#elapsed').textContent = String(Math.round((performance.now() - started) / 1000)); }, 1000);
+  const slow = setTimeout(() => setLoading('Still working…', "Sorry for the wait. It's still going."), SLOW_MS);
+  const lock = await keepAwake();
   try {
-    const input = { text, image: state.photo ? { mime: state.photo.mime, base64: state.photo.base64 } : null };
+    const input = { text, image: photo ? { mime: state.photo.mime, base64: state.photo.base64 } : null };
     const out = await estimate(input, state.keys, {
       signal: abort.signal,
       onAttempt: (_step, i) => {
-        if (i > 0) setLoading('Still working…', 'Trying another way. This can take up to a minute.');
+        setStep('sent', 'done', photo ? 'Photo sent' : 'Description sent');
+        setStep('look', 'now');
+        if (i > 0) {
+          setStep('look', 'now', 'Trying another way…');
+          setLoading('Still working…', 'This can take up to a minute.');
+        }
       },
     });
     if (!out.items.length) {
@@ -250,16 +284,18 @@ async function onEstimate() {
       model: out.model,
       usage: out.usage,
       ms: Math.round(performance.now() - started),
-      source: state.photo ? 'photo' : 'text',
+      source: photo ? 'photo' : 'text',
       text,
       thumb: state.photo?.thumb || '',
       isNew: true,
     });
   } catch (e) {
-    if (abort.signal.aborted) return; // Cancel already moved the screen back.
+    if (abort.signal.aborted) return; // Stop already moved the screen back.
     showFailure(describeFailure(e, navigator.onLine));
   } finally {
     clearTimeout(slow);
+    clearInterval(tick);
+    lock?.release().catch(() => {});
     if (state.abort === abort) state.abort = null;
   }
 }

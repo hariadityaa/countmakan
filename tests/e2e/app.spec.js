@@ -81,13 +81,37 @@ test.describe('with keys', () => {
     expect(entry.usage).toEqual({ input: 900, output: 130 });
   });
 
-  test('loading says what is happening, and says so again on fallback', async ({ page }) => {
+  test('loading covers the screen, shows real steps and says so on fallback', async ({ page }) => {
     await mockModels(page, { 'gemini-3.8-flash': busy(503), 'gemini-3.5-flash-lite': 'hang' });
     await open(page);
     await photoEstimate(page);
-    await expect(page.getByText('Trying another way.')).toBeVisible();
-    await page.getByRole('button', { name: 'Cancel' }).click();
+    await expect(page.getByText("Please wait. You don't need to do anything.")).toBeVisible();
+    await expect(page.locator('#step-sent')).toHaveClass('done');
+    await expect(page.locator('#step-sent')).toHaveText('Photo sent');
+    await expect(page.locator('#step-look')).toHaveText('Trying another way…');
+    await expect(page.locator('#loading-hint')).toHaveText('This can take up to a minute.');
+    // Nothing behind the wait view can be used.
+    await expect(page.locator('header.top')).toHaveAttribute('inert', '');
+    await expect(page.locator('main')).toHaveAttribute('inert', '');
+    const hit = await page.evaluate(() => {
+      const r = document.querySelector('nav button[data-tab=history]').getBoundingClientRect();
+      return document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)?.closest('#loading') != null;
+    });
+    expect(hit).toBe(true); // A tap where the History tab was lands on the wait view.
+    await page.getByRole('button', { name: 'Stop and go back' }).click();
     await expect(page.getByRole('heading', { name: 'Is this the right photo?' })).toBeVisible();
+    await expect(page.locator('main')).not.toHaveAttribute('inert', '');
+  });
+
+  test('text-only loading needs no photo', async ({ page }) => {
+    await mockModels(page, { 'gemini-3.8-flash': 'hang' });
+    await open(page);
+    await page.getByRole('button', { name: 'Type what you ate' }).click();
+    await page.getByLabel('Describe your food').fill('nasi goreng with a fried egg');
+    await page.getByRole('button', { name: 'Count calories' }).click();
+    await expect(page.locator('#step-sent')).toHaveText('Description sent');
+    await expect(page.locator('#step-look')).toHaveText('Reading your description');
+    await expect(page.locator('#loading-photo')).toBeHidden();
   });
 
   test('all providers failing shows one plain sentence, detail behind a toggle', async ({ page }) => {

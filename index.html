@@ -34,6 +34,7 @@
         <h2>Count your calories with a photo</h2>
         <p>Take a photo of your food before you eat.</p>
         <p>We'll work out the calories for you.</p>
+        <p>No photo? Tap "Type what you ate".</p>
       </div>
 
       <!-- Step 1: choose how to add a meal -->
@@ -67,17 +68,6 @@
           <button type="button" class="btn" id="cancel-compose">Cancel</button>
         </div>
         <p class="form-error" id="compose-error" role="alert"></p>
-      </div>
-
-      <!-- Step 3: waiting -->
-      <div class="card" id="loading" hidden aria-live="polite">
-        <img id="loading-img" alt="">
-        <div class="loading-row">
-          <span class="spinner" aria-hidden="true"></span>
-          <p class="loading-text" id="loading-text">Looking at your food…</p>
-        </div>
-        <p class="muted" id="loading-hint">This usually takes under 30 seconds.</p>
-        <button type="button" class="btn" id="cancel-estimate">Cancel</button>
       </div>
 
       <!-- Step 3b: something went wrong -->
@@ -140,6 +130,26 @@
       </details>
     </section>
   </main>
+
+  <!-- Step 3: waiting. Full screen, so there is nothing to tap but Stop. -->
+  <div class="busy" id="loading" role="dialog" aria-modal="true" aria-labelledby="loading-text" hidden>
+    <div class="busy-photo" id="loading-photo">
+      <img id="loading-img" alt="">
+      <span class="scan" aria-hidden="true"></span>
+    </div>
+    <h2 class="busy-title" aria-live="polite"><span class="spinner" aria-hidden="true"></span><span id="loading-text">Counting calories…</span></h2>
+    <ol class="steps" aria-label="Progress">
+      <li id="step-sent" class="now"><span class="dot" aria-hidden="true"></span><span class="label"></span></li>
+      <li id="step-look" class="todo"><span class="dot" aria-hidden="true"></span><span class="label"></span></li>
+      <li id="step-done" class="todo"><span class="dot" aria-hidden="true"></span><span class="label">Show you the results</span></li>
+    </ol>
+    <div class="calm">
+      <p>Please wait. You don't need to do anything.</p>
+      <p id="loading-hint" aria-live="polite">This usually takes under 30 seconds.</p>
+      <p class="elapsed"><span id="elapsed">0</span> seconds so far</p>
+    </div>
+    <button type="button" class="stop" id="cancel-estimate">Stop and go back</button>
+  </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden>
     <span id="toast-text"></span>

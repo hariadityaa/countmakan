@@ -17,7 +17,10 @@ Live at https://hariadityaa.github.io/countmakan/
 ## Screens
 - Home: one big "Take a photo of your food" button. "Choose a photo" and "Type what you ate" sit below.
 - The photo is shown first ("Is this the right photo?"). Nothing is sent until "Count calories", so a wrong photo costs nothing.
-- Loading says what is happening. After 30 s, or on fallback, it says "Still working…". Cancel is always there.
+- Loading is a full-screen wait view: "Please wait. You don't need to do anything." Nothing behind it can be tapped.
+- Its steps follow real events (sent, looking, results). On fallback the middle step says "Trying another way…". A seconds counter shows it is alive. "Stop and go back" is always there.
+- The screen stays awake while waiting (Wake Lock API, where supported).
+- Typing a description works without any photo.
 - Errors are one plain sentence. The per-provider detail is behind a "Details" toggle.
 - Items under 0.6 confidence get a "Please check this" badge.
 - Delete is immediate, with an 8 s "Undo".
