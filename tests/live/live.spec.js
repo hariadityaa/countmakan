@@ -66,7 +66,7 @@ test.beforeEach(async ({ page }) => {
 
 test('deployed build', async ({ request }) => {
   const sw = await (await request.get('sw.js')).text();
-  const cache = sw.match(/countmakan-[\w-]+/)?.[0];
+  const cache = sw.match(/CACHE = '(countmakan-[\w-]+)'/)?.[1];
   results.push({ id: 'build', cache });
   if (process.env.EXPECT_SHA) expect(cache).toBe(`countmakan-${process.env.EXPECT_SHA.slice(0, 7)}`);
 });
