@@ -66,7 +66,7 @@ Serve locally with any static server, e.g. `python3 -m http.server`.
 
 - `ci.yml` runs lint, syntax checks and tests on every PR.
 - `tests/e2e/` covers the setup link, photo and text estimates, fallback, failures, grams rescaling, save/history/delete/undo, backup round trip and offline reload. It uses `/opt/pw-browsers/chromium` when present.
-- `e2e-live.yml` is manual only. It runs `tests/live/` against the live site with the repo secrets. It makes 3 photo estimates (Commons photos fetched at run time) and 1 text estimate. It reports provider, time, tokens and totals in the job summary, and uploads screenshots as `live-results`.
+- `e2e-live.yml` runs by hand, or when its own file changes on main. It first waits for Pages to serve the commit. It runs `tests/live/` against the live site with the repo secrets. It makes 3 photo estimates (Commons photos fetched at run time) and 1 text estimate. It reports provider, time, tokens and totals in the job summary, and uploads screenshots as `live-results`.
 - `deploy.yml` deploys Pages from `main` with `actions/deploy-pages`. It stamps the commit into the service-worker cache name.
 
 ## Decisions log

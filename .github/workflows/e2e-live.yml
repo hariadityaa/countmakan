@@ -1,7 +1,12 @@
 name: e2e-live
-# Real model calls against the deployed site. Manual only: each run spends
-# about 4 Gemini Flash calls from a ~20/day free quota, and DeepSeek credit on fallback.
+# Real model calls against the deployed site. Each run spends about 4 Gemini
+# Flash calls from a ~20/day free quota, and DeepSeek credit on fallback.
+# Runs by hand, or when this file changes on main. GitHub did not register
+# the workflow for manual runs while it had no push trigger.
 on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/e2e-live.yml']
   workflow_dispatch:
     inputs:
       expect_sha:
@@ -21,11 +26,22 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
+      - name: Wait for Pages to serve this commit
+        env:
+          SHA: ${{ inputs.expect_sha || github.sha }}
+        run: |
+          want="countmakan-${SHA::7}"
+          for i in $(seq 1 40); do
+            got=$(curl -fsS "https://hariadityaa.github.io/countmakan/sw.js?t=$RANDOM" | grep -o 'countmakan-[a-z0-9]*' | head -1 || true)
+            [ "$got" = "$want" ] && { echo "Live: $got"; exit 0; }
+            echo "Live is $got, waiting for $want"; sleep 15
+          done
+          echo "Pages never served $want"; exit 1
       - name: Run live suite
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-          EXPECT_SHA: ${{ inputs.expect_sha }}
+          EXPECT_SHA: ${{ inputs.expect_sha || github.sha }}
           LIVE_OUT: ${{ github.workspace }}/live-results
         run: npx playwright test -c tests/live
       - uses: actions/upload-artifact@v4
