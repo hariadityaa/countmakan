@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>countmakan</title>
+  <meta name="description" content="Photo or describe a meal. Get calories and macros.">
+  <meta name="theme-color" content="#2f7d4f">
+  <meta name="referrer" content="no-referrer">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/app.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <header class="top">
+    <h1>countmakan</h1>
+    <nav>
+      <button data-tab="today" class="active">Today</button>
+      <button data-tab="history">History</button>
+      <button data-tab="settings">Settings</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="tab-today">
+      <div class="card" id="summary"></div>
+
+      <div class="card" id="add">
+        <h2>Add a meal</h2>
+        <div class="row">
+          <label class="btn big">📷 Take photo
+            <input type="file" accept="image/*" capture="environment" id="camera" hidden>
+          </label>
+          <label class="btn big">🖼️ Upload
+            <input type="file" accept="image/*" id="upload" hidden>
+          </label>
+        </div>
+        <div id="preview" hidden>
+          <img id="preview-img" alt="Selected meal photo">
+          <button class="link" id="clear-photo">Remove photo</button>
+        </div>
+        <label for="meal-text">Describe the food (optional with a photo)</label>
+        <textarea id="meal-text" rows="2" placeholder="e.g. nasi padang with rendang and sayur nangka, half portion rice"></textarea>
+        <button class="btn primary big" id="estimate">Estimate</button>
+        <p class="status" id="status" role="status"></p>
+      </div>
+
+      <div class="card" id="editor" hidden></div>
+
+      <div class="card">
+        <h2>Today's meals</h2>
+        <ul class="entries" id="today-list"></ul>
+      </div>
+    </section>
+
+    <section id="tab-history" hidden>
+      <div id="history"></div>
+    </section>
+
+    <section id="tab-settings" hidden>
+      <div class="card">
+        <h2>API keys</h2>
+        <p class="muted">Keys stay on this phone only.</p>
+        <label for="key-gemini">Gemini key</label>
+        <input id="key-gemini" type="password" autocomplete="off" spellcheck="false">
+        <label for="key-deepseek">DeepSeek key</label>
+        <input id="key-deepseek" type="password" autocomplete="off" spellcheck="false">
+        <div class="row">
+          <button class="btn primary" id="save-keys">Save keys</button>
+          <button class="btn" id="test-keys">Test keys</button>
+        </div>
+        <ul class="muted" id="key-results"></ul>
+        <details>
+          <summary>Make a setup link</summary>
+          <p class="muted">Opening this link on another phone saves these keys there. Treat it like a password.</p>
+          <button class="btn" id="make-link">Copy setup link</button>
+        </details>
+      </div>
+
+      <div class="card">
+        <h2>Daily targets</h2>
+        <div class="grid4" id="targets"></div>
+        <button class="btn primary" id="save-targets">Save targets</button>
+      </div>
+
+      <div class="card">
+        <h2>Backup</h2>
+        <div class="row">
+          <button class="btn" id="export">Export JSON</button>
+          <label class="btn">Import JSON<input type="file" accept="application/json,.json" id="import" hidden></label>
+        </div>
+        <p class="status" id="io-status" role="status"></p>
+      </div>
+
+      <div class="card">
+        <h2>Providers</h2>
+        <ol class="muted" id="chain"></ol>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
