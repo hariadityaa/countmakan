@@ -6,6 +6,7 @@ import { buildExport, parseImport, localDay } from './io.js';
 import { prepareImage } from './image.js';
 import { describeFailure, MSG } from './messages.js';
 import * as db from './db.js';
+import * as health from './health.js';
 
 const $ = (sel) => document.querySelector(sel);
 const MACROS = ['kcal', 'protein', 'carbs', 'fat'];
@@ -21,6 +22,7 @@ const state = {
   photo: null, // { mime, base64, thumb }
   draft: null, // entry being edited
   abort: null, // AbortController for the running estimate
+  health: { waiting: 0, needsSignIn: false, error: '' },
 };
 
 function el(tag, attrs = {}, ...kids) {
@@ -106,6 +108,7 @@ function showStep(step) {
   if (step === 'add') $('#add').hidden = !hasKeys();
   // Summary and meal list only on the home step, so each step has one job.
   $('#summary').hidden = step !== 'add';
+  $('#health-sync').hidden = step !== 'add' || !showSyncCard();
   $('#meals').hidden = step !== 'add';
   $('#not-set-up').hidden = hasKeys();
   $('#welcome').hidden = !hasKeys() || state.entries.length > 0 || step !== 'add';
@@ -398,17 +401,28 @@ async function saveDraft() {
   const { isNew, ...entry } = state.draft;
   entry.day = localDay(entry.ts);
   entry.updatedAt = new Date().toISOString();
+  const prev = state.entries.find((x) => x.id === entry.id);
+  if (isNew ? health.isOn() : prev?.gh) {
+    // Custom food logs can't be edited, so an edit replaces the old log.
+    if (prev?.gh?.name) health.queueDelete(prev.gh.name, { ripeNow: true });
+    entry.gh = { state: 'pending' };
+  }
   await db.putEntry(entry);
   state.entries = await db.allEntries();
   closeEditor();
   renderToday();
   window.scrollTo({ top: 0, behavior: 'smooth' });
   toast(isNew ? 'Meal saved ✓' : 'Changes saved ✓');
+  syncHealth();
 }
 
 async function deleteDraft() {
   const id = state.draft.id;
   const saved = state.entries.find((e) => e.id === id);
+  if (saved?.gh?.name) {
+    health.queueDelete(saved.gh.name);
+    setTimeout(syncHealth, health.DELETE_DELAY_MS + 500);
+  }
   await db.deleteEntry(id);
   state.entries = await db.allEntries();
   closeEditor();
@@ -417,13 +431,69 @@ async function deleteDraft() {
     action: 'Undo',
     ms: UNDO_MS,
     onAction: async () => {
-      await db.putEntry(saved);
+      // If the remote delete already went out, send the meal again.
+      const name = saved.gh?.name;
+      await db.putEntry(name && !health.unqueueDelete(name) ? { ...saved, gh: { state: 'pending' } } : saved);
       state.entries = await db.allEntries();
       renderToday();
       if (!$('#tab-history').hidden) renderHistory();
       toast('Meal is back ✓');
+      syncHealth();
     },
   });
+}
+
+// ---------- Google Health ----------
+const showSyncCard = () => health.isOn() && state.health.needsSignIn && state.health.waiting > 0;
+const changes = (n) => (n === 1 ? '1 meal is' : `${n} meals are`);
+
+async function syncHealth() {
+  if (!health.isOn()) return;
+  state.health = await health.sync({
+    entries: state.entries,
+    save: async (e) => {
+      if (!(await db.getEntry(e.id))) return false;
+      await db.putEntry(e);
+      return true;
+    },
+  });
+  state.entries = await db.allEntries();
+  renderHealth();
+}
+
+function renderHealth() {
+  const { waiting, error } = state.health;
+  $('#health-sync-text').textContent = `${changes(waiting)} not in Google Health yet.`;
+  $('#health-sync').hidden = $('#summary').hidden || !showSyncCard();
+  const on = health.isOn();
+  const failed = state.entries.filter((e) => e.gh?.state === 'failed').length;
+  const lines = on
+    ? ['On. New meals also go to the Google Health app.',
+      waiting ? `${changes(waiting)} waiting to send.` : '',
+      failed ? `${changes(failed)} could not be sent.` : '',
+      error ? `Last try failed: ${error}` : '']
+    : ['Send each new meal to the Google Health app.'];
+  $('#health-status').textContent = lines.filter(Boolean).join(' ');
+  $('#health-connect').hidden = on;
+  $('#health-disconnect').hidden = !on;
+}
+
+async function onHealthSignIn(okText) {
+  try {
+    await health.getToken();
+  } catch (e) {
+    toast(`Google Health: ${e.message}`);
+    return;
+  }
+  await syncHealth();
+  toast(state.health.error ? `Google Health: ${state.health.error}` : okText);
+}
+
+function onHealthDisconnect() {
+  health.disconnect();
+  state.health = { waiting: 0, needsSignIn: false, error: '' };
+  renderHealth();
+  toast('Google Health is off.');
 }
 
 // ---------- Settings ----------
@@ -434,6 +504,8 @@ function renderSettings() {
   $('#targets').replaceChildren(...MACROS.map((m) => el('div', {},
     el('label', { for: `t-${m}` }, GOAL_LABELS[m]),
     el('input', { id: `t-${m}`, type: 'number', inputmode: 'numeric', min: '0', value: state.targets[m] }))));
+  health.preload().catch(() => {});
+  renderHealth();
   $('#chain').replaceChildren(...CHAIN.map((s) => el('li', {}, `${PROVIDER_LABELS[s.provider]} · ${s.model}${state.keys[s.provider] ? '' : ' (no key)'}`)));
 }
 
@@ -564,11 +636,19 @@ async function boot() {
   $('#import').addEventListener('change', onImport);
   $('#install-yes').addEventListener('click', onInstall);
   $('#install-no').addEventListener('click', onDeclineInstall);
+  $('#health-connect').addEventListener('click', () => onHealthSignIn('Connected to Google Health ✓'));
+  $('#health-disconnect').addEventListener('click', onHealthDisconnect);
+  $('#health-sync-btn').addEventListener('click', () => onHealthSignIn('Sent to Google Health ✓'));
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) syncHealth(); });
   renderInstall();
 
   showStep('add');
   renderToday();
   document.body.dataset.ready = '1';
+  if (health.isOn()) {
+    health.preload().catch(() => {});
+    syncHealth();
+  }
   if (fromLink) toast("You're all set. Take a photo of your food to start.", { ms: 6000 });
 
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});

@@ -58,6 +58,10 @@
       </div>
 
       <div class="card" id="summary"></div>
+      <div class="card" id="health-sync" hidden>
+        <p id="health-sync-text"></p>
+        <button type="button" class="btn primary" id="health-sync-btn">Send to Google Health</button>
+      </div>
 
       <!-- Step 2: check the photo or text before sending -->
       <div class="card" id="compose" hidden>
@@ -104,6 +108,13 @@
         <h2>Daily goals</h2>
         <div class="grid2" id="targets"></div>
         <button type="button" class="btn primary" id="save-targets">Save goals</button>
+      </div>
+
+      <div class="card">
+        <h2>Google Health</h2>
+        <p class="muted" id="health-status"></p>
+        <button type="button" class="btn primary" id="health-connect">Connect</button>
+        <button type="button" class="btn" id="health-disconnect">Disconnect</button>
       </div>
 
       <div class="card">

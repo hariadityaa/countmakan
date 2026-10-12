@@ -30,6 +30,7 @@ async function tx(mode, fn) {
   });
 }
 
+export const getEntry = (id) => tx('readonly', (s) => s.get(id));
 export const putEntry = (e) => tx('readwrite', (s) => s.put(e));
 export const deleteEntry = (id) => tx('readwrite', (s) => s.delete(id));
 export const putMany = (list) => tx('readwrite', (s) => list.forEach((e) => s.put(e)));
