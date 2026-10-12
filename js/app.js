@@ -4,12 +4,15 @@ import { totals, scaleItem, normalizeItem } from './schema.js';
 import { parseSetupFragment, buildSetupLink, loadKeys, saveKeys, maskKey, PROVIDERS } from './keys.js';
 import { buildExport, parseImport, localDay } from './io.js';
 import { prepareImage } from './image.js';
+import { describeFailure, MSG } from './messages.js';
 import * as db from './db.js';
 
 const $ = (sel) => document.querySelector(sel);
 const MACROS = ['kcal', 'protein', 'carbs', 'fat'];
-const UNITS = { kcal: 'kcal', protein: 'g', carbs: 'g', fat: 'g', grams: 'g' };
-const LABELS = { kcal: 'Calories', protein: 'Protein', carbs: 'Carbs', fat: 'Fat', grams: 'Grams' };
+const GOAL_LABELS = { kcal: 'Calories', protein: 'Protein (g)', carbs: 'Carbs (g)', fat: 'Fat (g)' };
+const LOW_CONFIDENCE = 0.6;
+const SLOW_MS = 30000;
+const UNDO_MS = 8000;
 
 const state = {
   keys: {},
@@ -17,6 +20,7 @@ const state = {
   entries: [],
   photo: null, // { mime, base64, thumb }
   draft: null, // entry being edited
+  abort: null, // AbortController for the running estimate
 };
 
 function el(tag, attrs = {}, ...kids) {
@@ -32,6 +36,8 @@ function el(tag, attrs = {}, ...kids) {
 
 const fmt = (n) => Math.round(Number(n) || 0).toLocaleString('en');
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+const macroLine = (t) => `Protein ${fmt(t.protein)} g · Carbs ${fmt(t.carbs)} g · Fat ${fmt(t.fat)} g`;
+const hasKeys = () => PROVIDERS.some((p) => state.keys[p]);
 
 function setStatus(node, msg, isError = false) {
   node.textContent = msg;
@@ -46,6 +52,29 @@ function loadTargets() {
   }
 }
 
+// ---------- Toast ----------
+let toastTimer;
+function toast(text, { action, onAction, ms = 4000 } = {}) {
+  clearTimeout(toastTimer);
+  $('#toast-text').textContent = text;
+  const btn = $('#toast-action');
+  btn.hidden = !action;
+  btn.textContent = action || '';
+  btn.onclick = action
+    ? () => {
+      hideToast();
+      onAction();
+    }
+    : null;
+  $('#toast').hidden = false;
+  toastTimer = setTimeout(hideToast, ms);
+}
+
+function hideToast() {
+  clearTimeout(toastTimer);
+  $('#toast').hidden = true;
+}
+
 // ---------- Setup link ----------
 function consumeSetupLink() {
   const keys = parseSetupFragment(location.hash);
@@ -57,50 +86,82 @@ function consumeSetupLink() {
 
 // ---------- Tabs ----------
 function showTab(name) {
-  for (const b of document.querySelectorAll('nav button')) b.classList.toggle('active', b.dataset.tab === name);
+  for (const b of document.querySelectorAll('nav button')) {
+    if (b.dataset.tab === name) b.setAttribute('aria-current', 'page');
+    else b.removeAttribute('aria-current');
+  }
   for (const s of document.querySelectorAll('main > section')) s.hidden = s.id !== `tab-${name}`;
   if (name === 'history') renderHistory();
   if (name === 'settings') renderSettings();
 }
 
+// ---------- Today: which step is showing ----------
+// One step at a time: add, compose, loading, failure or editor.
+function showStep(step) {
+  for (const id of ['add', 'compose', 'loading', 'failure', 'editor']) $(`#${id}`).hidden = id !== step;
+  // While waiting, the rest of the app can't be tapped or reached by keyboard.
+  const busy = step === 'loading';
+  document.body.classList.toggle('is-busy', busy);
+  for (const n of [$('header.top'), $('main')]) n.inert = busy;
+  if (step === 'add') $('#add').hidden = !hasKeys();
+  // Summary and meal list only on the home step, so each step has one job.
+  $('#summary').hidden = step !== 'add';
+  $('#meals').hidden = step !== 'add';
+  $('#not-set-up').hidden = hasKeys();
+  $('#welcome').hidden = !hasKeys() || state.entries.length > 0 || step !== 'add';
+}
+
+function resetAdd() {
+  state.photo = null;
+  state.draft = null;
+  $('#preview-img').removeAttribute('src');
+  $('#meal-text').value = '';
+  $('#compose-error').textContent = '';
+  showStep('add');
+}
+
 // ---------- Summary ----------
-function bar(label, value, target, unit) {
+function bar(label, value, target) {
   const pct = target ? Math.min(100, (value / target) * 100) : 0;
   return el('div', {},
-    el('div', { class: 'bar-label' }, el('span', {}, label), el('span', {}, `${fmt(value)} / ${fmt(target)} ${unit}`)),
-    el('div', { class: `bar${target && value > target ? ' over' : ''}` }, el('i', { style: `width:${pct}%` })));
+    el('div', { class: 'bar-label' }, el('span', {}, label), el('span', {}, `${fmt(value)} g of ${fmt(target)} g`)),
+    el('div', { class: `bar${target && value > target ? ' over' : ''}`, 'aria-hidden': 'true' }, el('i', { style: `width:${pct}%` })));
 }
 
 function renderSummary() {
   const today = localDay(new Date());
   const t = totals(state.entries.filter((e) => e.day === today).flatMap((e) => e.items));
-  const left = state.targets.kcal - t.kcal;
+  const goal = state.targets.kcal;
+  const left = goal - t.kcal;
   $('#summary').replaceChildren(
-    el('div', { class: 'muted' }, new Date().toLocaleDateString('en', { weekday: 'long', day: 'numeric', month: 'long' })),
-    el('div', { class: 'big-num' }, `${fmt(t.kcal)} kcal`),
-    el('div', { class: 'muted' }, left >= 0 ? `${fmt(left)} kcal left today` : `${fmt(-left)} kcal over target`),
-    el('div', { class: 'bars' }, MACROS.slice(1).map((m) => bar(LABELS[m], t[m], state.targets[m], 'g'))),
+    el('div', { class: 'muted' }, `Today, ${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}`),
+    el('div', { class: 'big-num' }, fmt(t.kcal), ' ', el('small', {}, 'calories')),
+    el('div', {}, left >= 0 ? `${fmt(left)} left of your ${fmt(goal)} goal` : `${fmt(-left)} over your ${fmt(goal)} goal`),
+    el('div', { class: 'bars' },
+      bar('Protein', t.protein, state.targets.protein),
+      bar('Carbs', t.carbs, state.targets.carbs),
+      bar('Fat', t.fat, state.targets.fat)),
   );
 }
 
-// ---------- Entry list ----------
+// ---------- Meal lists ----------
 function entryRow(e) {
   const t = totals(e.items);
   const names = e.items.map((i) => i.name).join(', ') || e.text || 'Meal';
   const time = new Date(e.ts).toLocaleTimeString('en', { hour: 'numeric', minute: '2-digit' });
-  return el('li', { onclick: () => openEditor(structuredClone(e)) },
-    e.thumb ? el('img', { src: e.thumb, alt: '' }) : el('span', { class: 'ph' }, '🍽️'),
-    el('div', { class: 'meta' },
-      el('div', { class: 'name' }, names),
-      el('div', { class: 'muted' }, `${time} · P ${fmt(t.protein)} · C ${fmt(t.carbs)} · F ${fmt(t.fat)}`)),
-    el('span', { class: 'kcal' }, `${fmt(t.kcal)}`));
+  return el('li', {},
+    el('button', { type: 'button', class: 'entry', 'aria-label': `${names}, ${fmt(t.kcal)} calories, at ${time}. Tap to change.`, onclick: () => openEditor(structuredClone(e)) },
+      e.thumb ? el('img', { src: e.thumb, alt: '' }) : el('span', { class: 'ph', 'aria-hidden': 'true' }, '🍽️'),
+      el('span', { class: 'meta' }, el('span', { class: 'name' }, names), el('span', { class: 'muted' }, time)),
+      el('span', { class: 'cal' }, fmt(t.kcal), el('small', {}, 'calories'))));
 }
 
 function renderToday() {
   const today = localDay(new Date());
   const list = state.entries.filter((e) => e.day === today);
-  $('#today-list').replaceChildren(...(list.length ? list.map(entryRow) : [el('li', { class: 'muted' }, 'Nothing logged yet.')]));
+  $('#today-list').replaceChildren(...(list.length ? list.map(entryRow) : [el('li', { class: 'empty' }, 'No meals yet today.')]));
   renderSummary();
+  if (!$('#add').hidden || !$('#welcome').hidden || !$('#not-set-up').hidden) showStep('add');
 }
 
 function renderHistory() {
@@ -111,68 +172,146 @@ function renderHistory() {
   }
   const cards = [...byDay.entries()].map(([day, list]) => {
     const t = totals(list.flatMap((e) => e.items));
-    const label = new Date(`${day}T12:00:00`).toLocaleDateString('en', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    const label = new Date(`${day}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
     return el('div', { class: 'card' },
-      el('div', { class: 'day-head' }, el('h2', {}, label), el('span', { class: 'kcal' }, `${fmt(t.kcal)} kcal`)),
-      el('div', { class: 'muted' }, `P ${fmt(t.protein)} g · C ${fmt(t.carbs)} g · F ${fmt(t.fat)} g`),
+      el('div', { class: 'day-head' }, el('h2', {}, label), el('span', { class: 'day-total' }, `${fmt(t.kcal)} calories`)),
+      el('div', { class: 'muted' }, macroLine(t)),
       el('ul', { class: 'entries' }, list.map(entryRow)));
   });
-  $('#history').replaceChildren(...(cards.length ? cards : [el('div', { class: 'card muted' }, 'No history yet.')]));
+  $('#history').replaceChildren(...(cards.length ? cards : [el('div', { class: 'card empty' }, 'No meals saved yet.')]));
 }
 
-// ---------- Add meal ----------
+// ---------- Add a meal ----------
 async function onPhoto(ev) {
   const file = ev.target.files?.[0];
   ev.target.value = '';
   if (!file) return;
-  setStatus($('#status'), 'Preparing photo…');
   try {
     state.photo = await prepareImage(file, IMAGE_MAX_PX, THUMB_MAX_PX);
-    $('#preview-img').src = `data:${state.photo.mime};base64,${state.photo.base64}`;
-    $('#preview').hidden = false;
-    setStatus($('#status'), '');
-  } catch (e) {
-    setStatus($('#status'), `Could not read that photo: ${e.message}`, true);
+  } catch {
+    showStep(state.photo ? 'compose' : 'add');
+    toast(MSG.photo);
+    return;
   }
+  $('#preview-img').src = `data:${state.photo.mime};base64,${state.photo.base64}`;
+  openCompose(true);
 }
 
-function clearPhoto() {
-  state.photo = null;
-  $('#preview').hidden = true;
-  $('#preview-img').removeAttribute('src');
+function openCompose(withPhoto) {
+  if (!withPhoto) {
+    state.photo = null;
+    $('#preview-img').removeAttribute('src');
+  }
+  $('#compose-title').textContent = withPhoto ? 'Is this the right photo?' : 'What did you eat?';
+  $('#preview-img').hidden = !withPhoto;
+  $('#choose-another').hidden = !withPhoto;
+  $('#meal-text-label').textContent = withPhoto ? 'Anything to add? (optional)' : 'Describe your food';
+  $('#meal-text').placeholder = withPhoto ? 'For example: half a plate of rice' : 'For example: nasi goreng with a fried egg';
+  $('#compose-error').textContent = '';
+  showStep('compose');
+  if (!withPhoto) $('#meal-text').focus();
+}
+
+function setLoading(text, hint) {
+  $('#loading-text').textContent = text;
+  $('#loading-hint').textContent = hint;
+}
+
+// Each step reflects a real event: request sent, waiting for the answer, answer shown.
+function setStep(id, status, label) {
+  const li = $(`#step-${id}`);
+  li.className = status;
+  if (label) li.querySelector('.label').textContent = label;
+}
+
+// Keeps the phone from locking mid-wait, which can pause the request.
+async function keepAwake() {
+  try {
+    return await navigator.wakeLock?.request('screen');
+  } catch {
+    return null; // Not supported, or refused. The wait still works.
+  }
 }
 
 async function onEstimate() {
   const text = $('#meal-text').value.trim();
   if (!state.photo && !text) {
-    setStatus($('#status'), 'Take a photo or describe the food first.', true);
+    showStep('compose');
+    $('#compose-error').textContent = 'Please type what you ate.';
     return;
   }
-  const btn = $('#estimate');
-  btn.disabled = true;
-  setStatus($('#status'), 'Estimating… this can take 10–30 seconds.');
+  const photo = !!state.photo;
+  const img = $('#loading-img');
+  if (photo) img.src = `data:${state.photo.mime};base64,${state.photo.base64}`;
+  else img.removeAttribute('src');
+  $('#loading-photo').hidden = !photo;
+  setLoading('Counting calories…', 'This usually takes under 30 seconds.');
+  setStep('sent', 'now', photo ? 'Sending your photo' : 'Sending your description');
+  setStep('look', 'todo', photo ? 'Looking at your food' : 'Reading your description');
+  setStep('done', 'todo');
+  $('#elapsed').textContent = '0';
+  showStep('loading');
+  $('#cancel-estimate').focus();
+
+  const abort = new AbortController();
+  state.abort = abort;
+  const started = performance.now();
+  const tick = setInterval(() => { $('#elapsed').textContent = String(Math.round((performance.now() - started) / 1000)); }, 1000);
+  const slow = setTimeout(() => setLoading('Still working…', "Sorry for the wait. It's still going."), SLOW_MS);
+  const lock = await keepAwake();
   try {
-    const input = { text, image: state.photo ? { mime: state.photo.mime, base64: state.photo.base64 } : null };
-    const out = await estimate(input, state.keys);
-    const fellBack = out.attempts.some((a) => a.error);
-    setStatus($('#status'), fellBack ? `Used backup: ${out.model}` : '');
+    const input = { text, image: photo ? { mime: state.photo.mime, base64: state.photo.base64 } : null };
+    const out = await estimate(input, state.keys, {
+      signal: abort.signal,
+      onAttempt: (_step, i) => {
+        setStep('sent', 'done', photo ? 'Photo sent' : 'Description sent');
+        setStep('look', 'now');
+        if (i > 0) {
+          setStep('look', 'now', 'Trying another way…');
+          setLoading('Still working…', 'This can take up to a minute.');
+        }
+      },
+    });
+    if (!out.items.length) {
+      showFailure({ text: MSG.noFood, details: `${out.model}: returned no items` });
+      return;
+    }
     openEditor({
       id: uid(),
       ts: new Date().toISOString(),
       items: out.items,
       provider: out.provider,
       model: out.model,
-      source: state.photo ? 'photo' : 'text',
+      usage: out.usage,
+      ms: Math.round(performance.now() - started),
+      source: photo ? 'photo' : 'text',
       text,
       thumb: state.photo?.thumb || '',
       isNew: true,
     });
   } catch (e) {
-    const detail = (e.attempts || []).filter((a) => a.error).map((a) => `${a.model}: ${a.error}`).join('; ');
-    setStatus($('#status'), `${e.message}${detail ? ` (${detail})` : ''}`, true);
+    if (abort.signal.aborted) return; // Stop already moved the screen back.
+    showFailure(describeFailure(e, navigator.onLine));
   } finally {
-    btn.disabled = false;
+    clearTimeout(slow);
+    clearInterval(tick);
+    lock?.release().catch(() => {});
+    if (state.abort === abort) state.abort = null;
   }
+}
+
+function cancelEstimate() {
+  state.abort?.abort();
+  state.abort = null;
+  showStep('compose');
+}
+
+function showFailure({ text, details }) {
+  $('#failure-text').textContent = text;
+  $('#failure-details').textContent = details;
+  $('#failure details').open = false;
+  showStep('failure');
+  $('#failure').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ---------- Editor ----------
@@ -186,19 +325,20 @@ function openEditor(entry) {
   state.draft = entry;
   showTab('today');
   renderEditor();
+  showStep('editor');
   $('#editor').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function closeEditor() {
   state.draft = null;
-  $('#editor').hidden = true;
   $('#editor').replaceChildren();
+  resetAdd();
 }
 
-function numInput(item, field, onChange) {
-  return el('div', {},
-    el('label', {}, { kcal: 'kcal', grams: 'Grams' }[field] || `${LABELS[field]} g`),
-    el('input', { type: 'number', inputmode: 'decimal', min: '0', step: 'any', value: item[field], onchange: (ev) => onChange(ev.target.value) }));
+function field(id, label, value, onChange, cls = '') {
+  return el('div', { class: cls },
+    el('label', { for: id }, label),
+    el('input', { id, type: 'number', inputmode: 'decimal', min: '0', step: 'any', value, onchange: (ev) => onChange(ev.target.value) }));
 }
 
 // Replacing a focused input fires blur, then change, which would re-enter here.
@@ -215,59 +355,74 @@ function renderEditor() {
 
 function drawEditor() {
   const d = state.draft;
-  const box = $('#editor');
-  box.hidden = false;
   const items = d.items.map((it, i) => {
-    const update = (field) => (v) => {
-      d.items[i] = field === 'grams' ? scaleItem(it, v) : normalizeItem({ ...it, [field]: v });
+    const update = (f) => (v) => {
+      d.items[i] = f === 'grams' ? scaleItem(it, v) : normalizeItem({ ...it, [f]: v });
       renderEditor();
     };
-    const conf = it.confidence;
+    const id = (f) => `item-${i}-${f}`;
     return el('div', { class: 'item' },
-      el('div', { class: 'item-head' },
-        el('input', { value: it.name, 'aria-label': 'Item name', onchange: (ev) => { d.items[i] = { ...it, name: ev.target.value }; } }),
-        el('button', { class: 'btn danger', 'aria-label': `Remove ${it.name}`, onclick: () => { d.items.splice(i, 1); renderEditor(); } }, '✕')),
-      el('div', { class: 'grid5' }, ['grams', ...MACROS].map((f) => numInput(it, f, update(f)))),
-      el('div', { class: `conf${conf < 0.5 ? ' low' : ''}` }, `Confidence ${Math.round(conf * 100)}%. Changing grams rescales the rest.`));
+      el('label', { for: id('name') }, 'Food'),
+      el('input', { id: id('name'), value: it.name, onchange: (ev) => { d.items[i] = { ...it, name: ev.target.value }; } }),
+      it.confidence < LOW_CONFIDENCE ? el('span', { class: 'badge' }, 'Please check this') : null,
+      el('div', { class: 'item-cals' },
+        field(id('grams'), 'Grams', it.grams, update('grams')),
+        field(id('kcal'), 'Calories', it.kcal, update('kcal'))),
+      el('div', { class: 'item-macros' },
+        field(id('protein'), 'Protein g', it.protein, update('protein')),
+        field(id('carbs'), 'Carbs g', it.carbs, update('carbs')),
+        field(id('fat'), 'Fat g', it.fat, update('fat'))),
+      el('button', { type: 'button', class: 'btn danger', onclick: () => { d.items.splice(i, 1); renderEditor(); } }, `Remove ${it.name}`));
   });
   const t = totals(d.items);
-  box.replaceChildren(...[
-    el('h2', {}, d.isNew ? 'Check the estimate' : 'Edit meal'),
-    d.thumb ? el('img', { src: d.thumb, alt: '', style: 'max-width:120px;border-radius:8px' }) : null,
-    el('div', { class: 'muted' }, `Estimated by ${PROVIDER_LABELS[d.provider] || d.provider}${d.model ? ` (${d.model})` : ''}`),
-    items.length ? items : el('p', { class: 'muted' }, 'No items. Add one below.'),
-    el('button', { class: 'link', onclick: () => { d.items.push(normalizeItem({ name: 'New item', confidence: 1 })); renderEditor(); } }, '+ Add item'),
-    el('div', { class: 'totals-line' }, `Total: ${fmt(t.kcal)} kcal · P ${fmt(t.protein)} g · C ${fmt(t.carbs)} g · F ${fmt(t.fat)} g`),
-    el('label', { for: 'entry-time' }, 'When'),
+  $('#editor').replaceChildren(...[
+    el('h2', {}, d.isNew ? "Here's what we found" : 'Change this meal'),
+    d.thumb ? el('img', { class: 'editor-photo', src: d.thumb, alt: 'Your meal' }) : null,
+    el('p', { class: 'muted' }, 'If a portion looks wrong, change the grams. The other numbers update by themselves.'),
+    items.length ? items : el('p', { class: 'empty' }, 'No food in this meal. Add one below.'),
+    el('button', { type: 'button', class: 'btn', onclick: () => { d.items.push(normalizeItem({ name: 'Food', confidence: 1 })); renderEditor(); } }, '+ Add another food'),
+    el('p', { class: 'total', id: 'editor-total' }, `Total: ${fmt(t.kcal)} calories`),
+    el('p', { class: 'total-sub' }, macroLine(t)),
+    el('label', { for: 'entry-time' }, 'Time eaten'),
     el('input', { id: 'entry-time', type: 'datetime-local', value: toLocalInput(d.ts), onchange: (ev) => { if (ev.target.value) d.ts = new Date(ev.target.value).toISOString(); } }),
-    el('button', { class: 'btn primary big', onclick: saveDraft }, 'Save'),
-    el('div', { class: 'row' },
-      el('button', { class: 'btn', onclick: closeEditor }, d.isNew ? 'Discard' : 'Cancel'),
-      d.isNew ? null : el('button', { class: 'btn danger', onclick: deleteDraft }, 'Delete')),
+    el('button', { type: 'button', class: 'btn primary', id: 'save-meal', onclick: saveDraft }, d.isNew ? 'Save meal' : 'Save changes'),
+    el('button', { type: 'button', class: 'btn', onclick: closeEditor }, d.isNew ? "Don't save" : 'Cancel'),
+    d.isNew ? null : el('button', { type: 'button', class: 'btn danger', onclick: deleteDraft }, 'Delete this meal'),
   ].flat().filter(Boolean));
 }
 
 async function saveDraft() {
+  // Commit an edit that is still focused, so its change event runs first.
+  document.activeElement?.blur?.();
   const { isNew, ...entry } = state.draft;
   entry.day = localDay(entry.ts);
   entry.updatedAt = new Date().toISOString();
   await db.putEntry(entry);
   state.entries = await db.allEntries();
   closeEditor();
-  if (isNew) {
-    clearPhoto();
-    $('#meal-text').value = '';
-    setStatus($('#status'), 'Saved.');
-  }
   renderToday();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  toast(isNew ? 'Meal saved ✓' : 'Changes saved ✓');
 }
 
 async function deleteDraft() {
-  if (!confirm('Delete this meal?')) return;
-  await db.deleteEntry(state.draft.id);
+  const id = state.draft.id;
+  const saved = state.entries.find((e) => e.id === id);
+  await db.deleteEntry(id);
   state.entries = await db.allEntries();
   closeEditor();
   renderToday();
+  toast('Meal deleted.', {
+    action: 'Undo',
+    ms: UNDO_MS,
+    onAction: async () => {
+      await db.putEntry(saved);
+      state.entries = await db.allEntries();
+      renderToday();
+      if (!$('#tab-history').hidden) renderHistory();
+      toast('Meal is back ✓');
+    },
+  });
 }
 
 // ---------- Settings ----------
@@ -276,7 +431,7 @@ function renderSettings() {
   $('#key-deepseek').value = state.keys.deepseek || '';
   $('#key-results').replaceChildren(...PROVIDERS.map((p) => el('li', {}, `${PROVIDER_LABELS[p]}: ${maskKey(state.keys[p])}`)));
   $('#targets').replaceChildren(...MACROS.map((m) => el('div', {},
-    el('label', { for: `t-${m}` }, `${LABELS[m]} (${UNITS[m]})`),
+    el('label', { for: `t-${m}` }, GOAL_LABELS[m]),
     el('input', { id: `t-${m}`, type: 'number', inputmode: 'numeric', min: '0', value: state.targets[m] }))));
   $('#chain').replaceChildren(...CHAIN.map((s) => el('li', {}, `${PROVIDER_LABELS[s.provider]} · ${s.model}${state.keys[s.provider] ? '' : ' (no key)'}`)));
 }
@@ -292,7 +447,7 @@ async function onTestKeys() {
   const rows = await Promise.all(PROVIDERS.map(async (p) => {
     if (!keys[p]) return el('li', {}, `${PROVIDER_LABELS[p]}: not set`);
     const r = await testKey(p, keys[p].trim());
-    return el('li', { class: r.ok ? '' : 'error' }, `${r.ok ? '✅' : '❌'} ${PROVIDER_LABELS[p]}: ${r.message}`);
+    return el('li', {}, `${r.ok ? '✅' : '❌'} ${PROVIDER_LABELS[p]}: ${r.message}`);
   }));
   out.replaceChildren(...rows);
 }
@@ -301,7 +456,7 @@ async function onMakeLink() {
   const link = buildSetupLink(location.href, readKeyInputs());
   try {
     await navigator.clipboard.writeText(link);
-    alert('Setup link copied. Send it privately.');
+    toast('Setup link copied. Send it privately.');
   } catch {
     prompt('Copy this setup link:', link);
   }
@@ -314,7 +469,7 @@ function onSaveTargets() {
   }
   localStorage.setItem('countmakan.targets', JSON.stringify(state.targets));
   renderSummary();
-  alert('Targets saved.');
+  toast('Goals saved ✓');
 }
 
 function onExport() {
@@ -325,7 +480,7 @@ function onExport() {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  setStatus($('#io-status'), `Exported ${data.entries.length} meals.`);
+  setStatus($('#io-status'), `Saved a copy of ${data.entries.length} meals.`);
 }
 
 async function onImport(ev) {
@@ -342,9 +497,9 @@ async function onImport(ev) {
     state.entries = await db.allEntries();
     renderToday();
     renderSettings();
-    setStatus($('#io-status'), `Imported ${entries.length} meals.`);
-  } catch (e) {
-    setStatus($('#io-status'), e.message, true);
+    setStatus($('#io-status'), `Restored ${entries.length} meals.`);
+  } catch {
+    setStatus($('#io-status'), "That file isn't a countmakan copy. Choose another file.", true);
   }
 }
 
@@ -356,13 +511,18 @@ async function boot() {
   state.entries = await db.allEntries();
 
   for (const b of document.querySelectorAll('nav button')) b.addEventListener('click', () => showTab(b.dataset.tab));
-  $('#camera').addEventListener('change', onPhoto);
-  $('#upload').addEventListener('change', onPhoto);
-  $('#clear-photo').addEventListener('click', clearPhoto);
+  for (const id of ['#camera', '#upload', '#replace']) $(id).addEventListener('change', onPhoto);
+  $('#type-meal').addEventListener('click', () => openCompose(false));
+  $('#cancel-compose').addEventListener('click', resetAdd);
   $('#estimate').addEventListener('click', onEstimate);
+  $('#cancel-estimate').addEventListener('click', cancelEstimate);
+  $('#retry').addEventListener('click', onEstimate);
+  $('#start-over').addEventListener('click', resetAdd);
   $('#save-keys').addEventListener('click', () => {
     state.keys = saveKeys(readKeyInputs());
     renderSettings();
+    showStep('add');
+    toast('Keys saved ✓');
   });
   $('#test-keys').addEventListener('click', onTestKeys);
   $('#make-link').addEventListener('click', onMakeLink);
@@ -370,13 +530,10 @@ async function boot() {
   $('#export').addEventListener('click', onExport);
   $('#import').addEventListener('change', onImport);
 
+  showStep('add');
   renderToday();
-  if (fromLink) {
-    showTab('settings');
-    $('#key-results').prepend(el('li', {}, '✅ Keys saved from setup link.'));
-  } else if (!state.keys.gemini && !state.keys.deepseek) {
-    showTab('settings');
-  }
+  document.body.dataset.ready = '1';
+  if (fromLink) toast("You're all set. Take a photo of your food to start.", { ms: 6000 });
 
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 }

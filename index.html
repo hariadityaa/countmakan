@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>countmakan</title>
-  <meta name="description" content="Photo or describe a meal. Get calories and macros.">
-  <meta name="theme-color" content="#2f7d4f">
+  <meta name="description" content="Take a photo of your food. Get the calories.">
+  <meta name="theme-color" content="#256b41">
   <meta name="referrer" content="no-referrer">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
@@ -16,89 +16,144 @@
 <body>
   <header class="top">
     <h1>countmakan</h1>
-    <nav>
-      <button data-tab="today" class="active">Today</button>
-      <button data-tab="history">History</button>
-      <button data-tab="settings">Settings</button>
+    <nav aria-label="Main">
+      <button type="button" data-tab="today" aria-current="page">Today</button>
+      <button type="button" data-tab="history">History</button>
+      <button type="button" data-tab="settings">Settings</button>
     </nav>
   </header>
 
   <main>
-    <section id="tab-today">
-      <div class="card" id="summary"></div>
-
-      <div class="card" id="add">
-        <h2>Add a meal</h2>
-        <div class="row">
-          <label class="btn big">📷 Take photo
-            <input type="file" accept="image/*" capture="environment" id="camera" hidden>
-          </label>
-          <label class="btn big">🖼️ Upload
-            <input type="file" accept="image/*" id="upload" hidden>
-          </label>
-        </div>
-        <div id="preview" hidden>
-          <img id="preview-img" alt="Selected meal photo">
-          <button class="link" id="clear-photo">Remove photo</button>
-        </div>
-        <label for="meal-text">Describe the food (optional with a photo)</label>
-        <textarea id="meal-text" rows="2" placeholder="e.g. nasi padang with rendang and sayur nangka, half portion rice"></textarea>
-        <button class="btn primary big" id="estimate">Estimate</button>
-        <p class="status" id="status" role="status"></p>
+    <section id="tab-today" aria-label="Today">
+      <div class="card notice" id="not-set-up" hidden>
+        <h2>Not set up yet</h2>
+        <p>Ask Hari to send you the setup link. Open it on this phone.</p>
       </div>
 
+      <div class="card welcome" id="welcome" hidden>
+        <h2>Count your calories with a photo</h2>
+        <p>Take a photo of your food before you eat.</p>
+        <p>We'll work out the calories for you.</p>
+        <p>No photo? Tap "Type what you ate".</p>
+      </div>
+
+      <!-- Step 1: choose how to add a meal -->
+      <div class="card" id="add">
+        <label class="btn hero" id="hero">
+          <span class="icon" aria-hidden="true">📷</span>
+          <span>Take a photo of your food</span>
+          <input type="file" accept="image/*" capture="environment" id="camera" class="file-input">
+        </label>
+        <div class="row">
+          <label class="btn">Choose a photo
+            <input type="file" accept="image/*" id="upload" class="file-input">
+          </label>
+          <button type="button" class="btn" id="type-meal">Type what you ate</button>
+        </div>
+      </div>
+
+      <div class="card" id="summary"></div>
+
+      <!-- Step 2: check the photo or text before sending -->
+      <div class="card" id="compose" hidden>
+        <h2 id="compose-title">Is this the right photo?</h2>
+        <img id="preview-img" alt="The photo you chose">
+        <label for="meal-text" id="meal-text-label">Anything to add? (optional)</label>
+        <textarea id="meal-text" rows="3" placeholder="For example: half a plate of rice"></textarea>
+        <button type="button" class="btn primary" id="estimate">Count calories</button>
+        <div class="row">
+          <label class="btn" id="choose-another">Choose another photo
+            <input type="file" accept="image/*" id="replace" class="file-input">
+          </label>
+          <button type="button" class="btn" id="cancel-compose">Cancel</button>
+        </div>
+        <p class="form-error" id="compose-error" role="alert"></p>
+      </div>
+
+      <!-- Step 3b: something went wrong -->
+      <div class="card error-card" id="failure" hidden role="alert">
+        <p class="error-text" id="failure-text"></p>
+        <button type="button" class="btn primary" id="retry">Try again</button>
+        <button type="button" class="btn" id="start-over">Start over</button>
+        <details>
+          <summary>Details</summary>
+          <pre id="failure-details"></pre>
+        </details>
+      </div>
+
+      <!-- Step 4: check and save -->
       <div class="card" id="editor" hidden></div>
 
-      <div class="card">
+      <div class="card" id="meals">
         <h2>Today's meals</h2>
         <ul class="entries" id="today-list"></ul>
       </div>
     </section>
 
-    <section id="tab-history" hidden>
+    <section id="tab-history" aria-label="History" hidden>
       <div id="history"></div>
     </section>
 
-    <section id="tab-settings" hidden>
+    <section id="tab-settings" aria-label="Settings" hidden>
       <div class="card">
-        <h2>API keys</h2>
-        <p class="muted">Keys stay on this phone only.</p>
-        <label for="key-gemini">Gemini key</label>
-        <input id="key-gemini" type="password" autocomplete="off" spellcheck="false">
-        <label for="key-deepseek">DeepSeek key</label>
-        <input id="key-deepseek" type="password" autocomplete="off" spellcheck="false">
-        <div class="row">
-          <button class="btn primary" id="save-keys">Save keys</button>
-          <button class="btn" id="test-keys">Test keys</button>
-        </div>
-        <ul class="muted" id="key-results"></ul>
-        <details>
-          <summary>Make a setup link</summary>
-          <p class="muted">Opening this link on another phone saves these keys there. Treat it like a password.</p>
-          <button class="btn" id="make-link">Copy setup link</button>
-        </details>
-      </div>
-
-      <div class="card">
-        <h2>Daily targets</h2>
-        <div class="grid4" id="targets"></div>
-        <button class="btn primary" id="save-targets">Save targets</button>
+        <h2>Daily goals</h2>
+        <div class="grid2" id="targets"></div>
+        <button type="button" class="btn primary" id="save-targets">Save goals</button>
       </div>
 
       <div class="card">
         <h2>Backup</h2>
-        <div class="row">
-          <button class="btn" id="export">Export JSON</button>
-          <label class="btn">Import JSON<input type="file" accept="application/json,.json" id="import" hidden></label>
-        </div>
+        <p class="muted">Keep a copy of all your meals in a file.</p>
+        <button type="button" class="btn" id="export">Save a copy</button>
+        <label class="btn">Restore from a copy
+          <input type="file" accept="application/json,.json" id="import" class="file-input">
+        </label>
         <p class="status" id="io-status" role="status"></p>
       </div>
 
-      <div class="card">
-        <h2>Providers</h2>
+      <details class="card setup" id="setup">
+        <summary>Setup (Hari only)</summary>
+        <p class="muted">Keys stay on this phone only.</p>
+        <label for="key-gemini">Gemini API key</label>
+        <input id="key-gemini" type="password" autocomplete="off" spellcheck="false">
+        <label for="key-deepseek">DeepSeek API key</label>
+        <input id="key-deepseek" type="password" autocomplete="off" spellcheck="false">
+        <div class="row">
+          <button type="button" class="btn primary" id="save-keys">Save keys</button>
+          <button type="button" class="btn" id="test-keys">Test keys</button>
+        </div>
+        <ul class="muted" id="key-results"></ul>
+        <p class="muted">The setup link saves these keys on another phone. Treat it like a password.</p>
+        <button type="button" class="btn" id="make-link">Copy setup link</button>
+        <h3>Provider order</h3>
         <ol class="muted" id="chain"></ol>
-      </div>
+      </details>
     </section>
   </main>
+
+  <!-- Step 3: waiting. Full screen, so there is nothing to tap but Stop. -->
+  <div class="busy" id="loading" role="dialog" aria-modal="true" aria-labelledby="loading-text" hidden>
+    <div class="busy-photo" id="loading-photo">
+      <img id="loading-img" alt="">
+      <span class="scan" aria-hidden="true"></span>
+    </div>
+    <h2 class="busy-title" aria-live="polite"><span class="spinner" aria-hidden="true"></span><span id="loading-text">Counting calories…</span></h2>
+    <ol class="steps" aria-label="Progress">
+      <li id="step-sent" class="now"><span class="dot" aria-hidden="true"></span><span class="label"></span></li>
+      <li id="step-look" class="todo"><span class="dot" aria-hidden="true"></span><span class="label"></span></li>
+      <li id="step-done" class="todo"><span class="dot" aria-hidden="true"></span><span class="label">Show you the results</span></li>
+    </ol>
+    <div class="calm">
+      <p>Please wait. You don't need to do anything.</p>
+      <p id="loading-hint" aria-live="polite">This usually takes under 30 seconds.</p>
+      <p class="elapsed"><span id="elapsed">0</span> seconds so far</p>
+    </div>
+    <button type="button" class="stop" id="cancel-estimate">Stop and go back</button>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden>
+    <span id="toast-text"></span>
+    <button type="button" class="btn" id="toast-action" hidden>Undo</button>
+  </div>
 </body>
 </html>

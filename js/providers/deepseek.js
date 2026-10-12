@@ -1,4 +1,4 @@
-import { ENDPOINTS } from '../config.js';
+import { ENDPOINTS, MAX_OUTPUT_TOKENS } from '../config.js';
 import { SYSTEM_PROMPT, userText } from '../prompt.js';
 import { OutputError } from '../schema.js';
 
@@ -19,6 +19,7 @@ export function buildRequest(model, input, key) {
         model,
         response_format: { type: 'json_object' },
         temperature: 0.2,
+        max_tokens: MAX_OUTPUT_TOKENS,
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content },
@@ -36,4 +37,9 @@ export function extractText(json) {
 
 export function errorDetail(json) {
   return json?.error?.message || '';
+}
+
+export function extractUsage(json) {
+  const u = json?.usage;
+  return u ? { input: u.prompt_tokens || 0, output: u.completion_tokens || 0 } : null;
 }
