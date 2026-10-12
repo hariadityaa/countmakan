@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseEstimate, normalizeItem, totals, scaleItem, OutputError } from '../js/schema.js';
+import { parseEstimate, normalizeItem, totals, scaleItem, shortName, mealTitle, OutputError } from '../js/schema.js';
 
 test('parseEstimate reads plain and fenced JSON', () => {
   const body = '{"items":[{"name":"Nasi lemak","grams":350,"kcal":650,"protein":18,"carbs":80,"fat":28,"confidence":0.8}]}';
@@ -46,4 +46,29 @@ test('scaleItem with zero grams only sets grams', () => {
   const s = scaleItem({ name: 'x', grams: 0, kcal: 50, protein: 1, carbs: 1, fat: 1, confidence: 1 }, 40);
   assert.equal(s.grams, 40);
   assert.equal(s.kcal, 50);
+});
+
+test('normalizeItem keeps a non-empty detail only', () => {
+  assert.equal(normalizeItem({ name: 'Congee', detail: ' plain ' }).detail, 'plain');
+  assert.equal('detail' in normalizeItem({ name: 'Congee', detail: '  ' }), false);
+});
+
+test('shortName drops brackets and text after the first comma', () => {
+  assert.equal(shortName('Dried shrimp (hae bee), fried'), 'Dried shrimp');
+  assert.equal(shortName('Rice porridge (congee), plain'), 'Rice porridge');
+  assert.equal(shortName('Teh tarik'), 'Teh tarik');
+  assert.equal(shortName('(congee)'), '(congee)');
+});
+
+test('mealTitle names the two biggest items and counts the rest', () => {
+  const items = [
+    { name: 'Scallions, chopped', kcal: 2 },
+    { name: 'Congee', kcal: 200 },
+    { name: 'You tiao (fried dough stick), cut pieces', kcal: 300 },
+    { name: 'Zha cai', kcal: 10 },
+  ];
+  assert.deepEqual(mealTitle(items), { title: 'You tiao, Congee', more: 2 });
+  assert.deepEqual(mealTitle(items.slice(0, 2)), { title: 'Congee, Scallions', more: 0 });
+  assert.deepEqual(mealTitle([], 'two eggs'), { title: 'two eggs', more: 0 });
+  assert.deepEqual(mealTitle([]), { title: 'Meal', more: 0 });
 });

@@ -1,6 +1,6 @@
 import { CHAIN, DEFAULT_TARGETS, IMAGE_MAX_PX, THUMB_MAX_PX, PROVIDER_LABELS } from './config.js';
 import { estimate, testKey } from './chain.js';
-import { totals, scaleItem, normalizeItem } from './schema.js';
+import { totals, scaleItem, normalizeItem, mealTitle } from './schema.js';
 import { parseSetupFragment, buildSetupLink, loadKeys, saveKeys, maskKey, PROVIDERS } from './keys.js';
 import { buildExport, parseImport, localDay } from './io.js';
 import { prepareImage } from './image.js';
@@ -147,13 +147,13 @@ function renderSummary() {
 // ---------- Meal lists ----------
 function entryRow(e) {
   const t = totals(e.items);
-  const names = e.items.map((i) => i.name).join(', ') || e.text || 'Meal';
+  const { title, more } = mealTitle(e.items, e.text);
   const time = new Date(e.ts).toLocaleTimeString('en', { hour: 'numeric', minute: '2-digit' });
   return el('li', {},
-    el('button', { type: 'button', class: 'entry', 'aria-label': `${names}, ${fmt(t.kcal)} calories, at ${time}. Tap to change.`, onclick: () => openEditor(structuredClone(e)) },
+    el('button', { type: 'button', class: 'entry', 'aria-label': `${title}${more ? ` and ${more} more` : ''}, ${fmt(t.kcal)} calories, at ${time}. Tap to see all items.`, onclick: () => openEditor(structuredClone(e)) },
       e.thumb ? el('img', { src: e.thumb, alt: '' }) : el('span', { class: 'ph', 'aria-hidden': 'true' }, '–'),
-      el('span', { class: 'meta' }, el('span', { class: 'name' }, names), el('span', { class: 'muted' }, time)),
-      el('span', { class: 'cal' }, fmt(t.kcal), el('small', {}, 'calories'))));
+      el('span', { class: 'meta' }, el('span', { class: 'name' }, title), el('span', { class: 'time' }, more ? `${time} · +${more} more` : time)),
+      el('span', { class: 'cal' }, fmt(t.kcal), el('small', {}, ' kcal'))));
 }
 
 function renderToday() {
@@ -364,6 +364,7 @@ function drawEditor() {
     return el('div', { class: 'item' },
       el('label', { for: id('name') }, 'Food'),
       el('input', { id: id('name'), value: it.name, onchange: (ev) => { d.items[i] = { ...it, name: ev.target.value }; } }),
+      it.detail ? el('div', { class: 'item-detail' }, it.detail) : null,
       it.confidence < LOW_CONFIDENCE ? el('span', { class: 'badge' }, 'Please check this') : null,
       el('div', { class: 'item-cals' },
         field(id('grams'), 'Grams', it.grams, update('grams')),
