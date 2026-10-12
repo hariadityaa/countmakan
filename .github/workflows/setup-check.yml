@@ -34,7 +34,7 @@ jobs:
           echo "gemini_models_http=$code"
           jq -r '.models[]?.name' g.json | grep -i flash | grep -vi -e image -e tts -e audio -e live || true
           jq -r '.error.message? // empty' g.json
-      - name: DeepSeek key works + model ids + browser CORS
+      - name: DeepSeek key works + model ids
         env:
           K: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
@@ -43,6 +43,8 @@ jobs:
           echo "deepseek_models_http=$code"
           jq -r '.data[]?.id' d.json
           jq -r '.error.message? // empty' d.json
+      - name: DeepSeek browser CORS (no key needed)
+        run: |
           echo "--- CORS preflight from Pages origin:"
           curl -s -i -X OPTIONS https://api.deepseek.com/chat/completions \
             -H "Origin: https://hariadityaa.github.io" \
