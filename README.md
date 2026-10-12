@@ -1,6 +1,7 @@
 # Makan Meter
 
-Calorie counter PWA for Hari's parents. Take a photo, upload one or type a description. Get calories, protein, carbs and fat back. The repo is still named `countmakan`.
+Calorie counter PWA. Take a photo, upload one or type a description. Get calories, protein, carbs and fat back. The repo is still named `countmakan`.
+Hari's parents use a setup link. Friends bring their own free Gemini key. DeepSeek is an optional paid backup.
 
 Live at https://hariadityaa.github.io/countmakan/
 
@@ -12,7 +13,7 @@ Live at https://hariadityaa.github.io/countmakan/
 - The user can edit every number before saving. Changing grams rescales the rest.
 - Each entry stores the provider, model, token usage and response time.
 - Settings has daily goals and backup ("Save a copy" / "Restore from a copy").
-- Keys, "Test keys", the setup link and the provider order sit in a folded "Setup (Hari only)" section.
+- Keys, "Test keys", the setup link and the provider order sit in a folded "Setup (API keys)" section. It includes a free Gemini key guide and a folded optional DeepSeek field.
 
 ## Screens
 - Home: one big "Take a photo" button. "Choose photo" and "Type it in" sit below.
@@ -42,8 +43,18 @@ DeepSeek is paid, so it goes last. Its answer is capped at 1,000 tokens.
 - Gemini uses the native `generateContent` endpoint with `responseSchema`. Its OpenAI-compatible endpoint reportedly fails CORS.
 - DeepSeek uses `chat/completions` with `response_format: json_object`.
 
+## Using your own free Gemini key
+For friends. The same steps are in Settings → "Setup (API keys)". On a phone with no keys, "Use my own key" on the Today tab opens them.
+1. Open [aistudio.google.com/apikey](https://aistudio.google.com/apikey).
+2. Sign in with any Google account and accept the terms if asked.
+3. Tap "Create API key". Pick the default project if asked.
+4. Copy the key. It starts with `AIza`.
+5. Paste it into "Gemini API key (free)", then tap "Save keys" and "Test keys".
+
+No credit card is needed. Leave DeepSeek empty unless you have a paid account. The chain skips any provider without a key.
+
 ## Setting up a phone
-1. On your own phone, open Settings → "Setup (Hari only)", paste the keys, then tap "Test keys".
+1. On your own phone, open Settings → "Setup (API keys)", paste the keys, then tap "Test keys".
 2. Tap "Copy setup link" and send it privately. Parents only ever use this link. It looks like `https://hariadityaa.github.io/countmakan/#setup?gemini=…&deepseek=…`.
 3. Opening the link saves the keys and strips them from the address bar. The `#` fragment never reaches a server.
 4. Install from the browser menu: "Add to Home screen".
@@ -73,7 +84,7 @@ New users must be added as test users first. Testing mode shows an "unverified a
 
 ## Data and privacy
 - Storage keys, the IndexedDB name, the cache name and the export `app` field stay `countmakan`. Renaming them would orphan saved data.
-- The free Gemini tier may use inputs, including photos, to improve Google products ([terms](https://ai.google.dev/gemini-api/terms)). Hari accepted this. Turning on billing for the key stops it.
+- The free Gemini tier may use inputs, including photos, to improve Google products ([terms](https://ai.google.dev/gemini-api/terms)). Hari accepted this for the parents' phones. Turning on billing for the key stops it. The key guide in Settings says this too.
 - Gemini's free-tier caps aren't published. Secondary sources put Flash at about 20 requests a day and Flash-Lite at about 500. Check AI Studio for the real numbers.
 
 ## Development
@@ -93,7 +104,8 @@ Serve locally with any static server, e.g. `python3 -m http.server`.
 
 ## Decisions log
 - No Cloudflare Worker. Keys live on the device. No passcode.
-- DeepSeek is allowed. Hari has a paid account.
+- DeepSeek is optional. Hari has a paid account. Friends can run on a free Gemini key alone.
+- OpenAI and Claude adapters were considered for friends and skipped. A free Gemini key covers most people.
 - Workers AI was dropped because it needs Cloudflare.
 - Defaults: no daily request cap, English UI, targets for kcal, protein, carbs and fat.
 - Eval (Nutrition5k plus weighed home meals) is deferred.

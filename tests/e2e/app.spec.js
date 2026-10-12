@@ -11,6 +11,16 @@ test('without keys the app asks for the setup link', async ({ page }) => {
   await expect(page.locator('#hero')).toBeHidden();
 });
 
+test('without keys, Use my own key opens Setup with the Gemini guide and DeepSeek folded', async ({ page }) => {
+  await open(page);
+  await page.getByRole('button', { name: 'Use my own key' }).click();
+  await expect(page.getByLabel('Gemini API key (free)')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'aistudio.google.com/apikey' })).toBeVisible();
+  await expect(page.getByText('Optional: DeepSeek key (paid)')).toBeVisible();
+  await expect(page.getByLabel('DeepSeek API key')).toBeHidden();
+  await expect(page.locator('#chain')).toContainText('DeepSeek · deepseek-flash (optional, no key)');
+});
+
 test('setup link saves keys, strips them from the address and shows the home screen', async ({ page }) => {
   await open(page, `#setup?gemini=${KEYS.gemini}&deepseek=${KEYS.deepseek}`);
   await expect(page.locator('#hero')).toBeVisible();
@@ -129,7 +139,7 @@ test.describe('with keys', () => {
     await mockModels(page, { 'gemini-3.8-flash': { status: 400, body: { error: { message: 'API key not valid' } } } });
     await open(page);
     await photoEstimate(page);
-    await expect(page.locator('#failure-text')).toHaveText('The app needs fixing. Please tell Hari.');
+    await expect(page.locator('#failure-text')).toHaveText('The app needs fixing. Check the keys in Settings, or tell Hari.');
   });
 
   test('editing grams rescales calories, protein, carbs and fat', async ({ page }) => {
@@ -205,7 +215,7 @@ test.describe('with keys', () => {
   test('setup section is folded away in Settings', async ({ page }) => {
     await open(page);
     await page.getByRole('button', { name: 'Settings' }).click();
-    await expect(page.getByText('Setup (Hari only)')).toBeVisible();
+    await expect(page.getByText('Setup (API keys)')).toBeVisible();
     await expect(page.getByLabel('Gemini API key')).toBeHidden();
   });
 

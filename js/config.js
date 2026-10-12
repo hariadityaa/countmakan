@@ -16,6 +16,9 @@ export const ENDPOINTS = {
 
 export const PROVIDER_LABELS = { gemini: 'Gemini', deepseek: 'DeepSeek' };
 
+// Shown as optional in Setup. The chain already skips any provider without a key.
+export const OPTIONAL_PROVIDERS = ['deepseek'];
+
 export const TIMEOUT_MS = 60000;
 
 // Caps paid output. A 10-item answer is about 600 tokens.
