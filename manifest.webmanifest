@@ -1,6 +1,6 @@
 {
-  "name": "countmakan",
-  "short_name": "countmakan",
+  "name": "Makan Meter",
+  "short_name": "Makan Meter",
   "description": "Photo or describe a meal. Get calories and macros.",
   "start_url": "./",
   "scope": "./",
