@@ -83,7 +83,7 @@ for (const c of CASES) {
       await writeFile(file, photo.buffer);
       await page.setInputFiles('#upload', file);
     } else {
-      await page.getByRole('button', { name: 'Type what you ate' }).click();
+      await page.getByRole('button', { name: 'Type it in' }).click();
       await page.getByLabel('Describe your food').fill(c.text);
     }
     await page.getByRole('button', { name: 'Count calories' }).click();

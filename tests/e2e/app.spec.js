@@ -49,7 +49,7 @@ test.describe('with keys', () => {
     const items = [{ name: 'Telur rebus', grams: 100, kcal: 155, protein: 13, carbs: 1, fat: 11, confidence: 0.95 }];
     await mockModels(page, { 'gemini-3.8-flash': { status: 200, body: geminiBody(items) } });
     await open(page);
-    await page.getByRole('button', { name: 'Type what you ate' }).click();
+    await page.getByRole('button', { name: 'Type it in' }).click();
     await page.getByLabel('Describe your food').fill('2 boiled eggs');
     await page.getByRole('button', { name: 'Count calories' }).click();
     await expect(page.locator('#editor-total')).toHaveText('Total: 155 calories');
@@ -59,7 +59,7 @@ test.describe('with keys', () => {
   test('empty text asks the user to type something, without a call', async ({ page }) => {
     const calls = await mockModels(page, {});
     await open(page);
-    await page.getByRole('button', { name: 'Type what you ate' }).click();
+    await page.getByRole('button', { name: 'Type it in' }).click();
     await page.getByRole('button', { name: 'Count calories' }).click();
     await expect(page.getByText('Please type what you ate.')).toBeVisible();
     expect(calls).toEqual([]);
@@ -106,7 +106,7 @@ test.describe('with keys', () => {
   test('text-only loading needs no photo', async ({ page }) => {
     await mockModels(page, { 'gemini-3.8-flash': 'hang' });
     await open(page);
-    await page.getByRole('button', { name: 'Type what you ate' }).click();
+    await page.getByRole('button', { name: 'Type it in' }).click();
     await page.getByLabel('Describe your food').fill('nasi goreng with a fried egg');
     await page.getByRole('button', { name: 'Count calories' }).click();
     await expect(page.locator('#step-sent')).toHaveText('Description sent');
@@ -218,7 +218,7 @@ test.describe('with keys', () => {
       window.dispatchEvent(e);
     });
     await fire();
-    await page.getByRole('button', { name: 'Add to home screen' }).click();
+    await page.getByRole('button', { name: 'Install app' }).click();
     expect(await page.evaluate(() => window.prompted)).toBe(true);
     await expect(page.locator('#install')).toBeHidden();
     await fire();

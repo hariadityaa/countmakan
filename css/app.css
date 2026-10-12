@@ -5,7 +5,8 @@
   --border: #262626;  --border-strong: #3a3a3a;
   --text: #ededed;  --text-2: #a1a1a1;  --text-3: #6b6b6b;
   --accent: #ededed;  --accent-text: #0a0a0a;
-  --red: #ef4444;  --green: #22c55e;
+  --red: #ef4444;  --green: #22c55e;  --green-2: #16a34a;
+  --promo-bg: #0c1a11;  --promo-border: #1f5133;
   --overlay: rgb(0 0 0 / .6);
 
   --r: 8px;  --r-sm: 6px;  --r-lg: 12px;  --r-pill: 999px;
@@ -97,7 +98,13 @@ textarea { padding: var(--s-2) var(--s-3); resize: vertical; }
 .btn.danger { color: var(--red); }
 .btn:disabled { opacity: .6; cursor: default; }
 .row { display: flex; gap: var(--s-2); flex-wrap: wrap; }
-.row > * { flex: 1 1 140px; }
+.row > * { flex: 1 1 120px; }
+.row > .btn { padding: 0 var(--s-2); white-space: nowrap; } /* too long for its half? it takes a full line instead */
+
+/* One-time prompts (install) stand apart from the daily controls */
+.card.promo { background: var(--promo-bg); border-color: var(--promo-border); }
+.card.promo .btn.primary { background: var(--green); border-color: var(--green); color: var(--accent-text); }
+.card.promo .btn:not(.primary) { background: transparent; border-color: var(--promo-border); }
 
 /* Summary */
 .summary-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s-2); }
@@ -229,6 +236,7 @@ pre { white-space: pre-wrap; word-break: break-word; font: .875rem/1.5 var(--fon
   .btn:hover, .entry:hover { background: var(--surface-2); border-color: var(--border-strong); }
   .btn.primary:hover, .btn.hero:hover { background: var(--text-2); border-color: var(--text-2); }
   .toast .btn:hover { background: var(--bg); border-color: var(--bg); }
+  .card.promo .btn.primary:hover { background: var(--green-2); border-color: var(--green-2); }
   nav button:hover { background: var(--surface-2); color: var(--text); }
   input:hover, textarea:hover { border-color: var(--border-strong); }
 }
