@@ -197,11 +197,23 @@ function closeEditor() {
 
 function numInput(item, field, onChange) {
   return el('div', {},
-    el('label', {}, field === 'kcal' ? 'kcal' : `${LABELS[field]} g`),
+    el('label', {}, { kcal: 'kcal', grams: 'Grams' }[field] || `${LABELS[field]} g`),
     el('input', { type: 'number', inputmode: 'decimal', min: '0', step: 'any', value: item[field], onchange: (ev) => onChange(ev.target.value) }));
 }
 
+// Replacing a focused input fires blur, then change, which would re-enter here.
+let rendering = false;
 function renderEditor() {
+  if (rendering) return;
+  rendering = true;
+  try {
+    drawEditor();
+  } finally {
+    rendering = false;
+  }
+}
+
+function drawEditor() {
   const d = state.draft;
   const box = $('#editor');
   box.hidden = false;
@@ -219,7 +231,7 @@ function renderEditor() {
       el('div', { class: `conf${conf < 0.5 ? ' low' : ''}` }, `Confidence ${Math.round(conf * 100)}%. Changing grams rescales the rest.`));
   });
   const t = totals(d.items);
-  box.replaceChildren(
+  box.replaceChildren(...[
     el('h2', {}, d.isNew ? 'Check the estimate' : 'Edit meal'),
     d.thumb ? el('img', { src: d.thumb, alt: '', style: 'max-width:120px;border-radius:8px' }) : null,
     el('div', { class: 'muted' }, `Estimated by ${PROVIDER_LABELS[d.provider] || d.provider}${d.model ? ` (${d.model})` : ''}`),
@@ -232,7 +244,7 @@ function renderEditor() {
     el('div', { class: 'row' },
       el('button', { class: 'btn', onclick: closeEditor }, d.isNew ? 'Discard' : 'Cancel'),
       d.isNew ? null : el('button', { class: 'btn danger', onclick: deleteDraft }, 'Delete')),
-  );
+  ].flat().filter(Boolean));
 }
 
 async function saveDraft() {
