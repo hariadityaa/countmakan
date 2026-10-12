@@ -70,7 +70,7 @@ p { margin: 0 0 var(--s-2); }
 label { display: block; font-size: .875rem; color: var(--text-2); margin: var(--s-3) 0 var(--s-1); }
 
 /* Inputs */
-input, textarea {
+input, textarea, select {
   width: 100%; min-height: var(--control-h); font: inherit; color: var(--text); background: var(--surface-2);
   border: 1px solid var(--border); border-radius: var(--r); padding: 0 var(--s-3);
   transition: background var(--ease), border-color var(--ease);
@@ -295,6 +295,8 @@ pre { white-space: pre-wrap; word-break: break-word; font: .875rem/1.5 var(--fon
 .guide code { font-family: var(--font-mono); }
 .status { min-height: 1.5em; margin: var(--s-2) 0 0; font-size: .875rem; color: var(--text-2); }
 .status.error { color: var(--red); }
+#suggest-reasons { padding-left: var(--s-6); margin: var(--s-2) 0 0; }
+#targets input.suggested { border-color: var(--green); box-shadow: 0 0 0 1px var(--green); }
 
 /* Toast: inverted, the only element with a shadow. Sits above the tab bar. */
 .toast {
@@ -315,7 +317,7 @@ pre { white-space: pre-wrap; word-break: break-word; font: .875rem/1.5 var(--fon
   .toast .btn:hover { background: var(--bg); border-color: var(--bg); }
   .card.promo .btn.primary:hover { background: var(--green-2); border-color: var(--green-2); }
   nav button:hover { background: var(--surface-2); color: var(--text); }
-  input:hover, textarea:hover { border-color: var(--border-strong); }
+  input:hover, textarea:hover, select:hover { border-color: var(--border-strong); }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
