@@ -3,7 +3,7 @@ import { SYSTEM_PROMPT, userText } from '../prompt.js';
 import { OutputError } from '../schema.js';
 
 export function buildRequest(model, input, key) {
-  const text = userText(input.text, !!input.image);
+  const text = userText(input);
   const content = input.image
     ? [
         { type: 'text', text },

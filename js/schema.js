@@ -1,4 +1,7 @@
-const NUM_FIELDS = ['grams', 'kcal', 'protein', 'carbs', 'fat'];
+// sodium is milligrams. Every other amount is grams, except kcal.
+export const NUTRIENTS = ['kcal', 'protein', 'carbs', 'fat', 'sugar', 'fibre', 'sodium'];
+const NUM_FIELDS = ['grams', ...NUTRIENTS];
+const MAX_CHOICES = 4;
 
 export const RESPONSE_SCHEMA = {
   type: 'OBJECT',
@@ -15,11 +18,16 @@ export const RESPONSE_SCHEMA = {
           protein: { type: 'NUMBER' },
           carbs: { type: 'NUMBER' },
           fat: { type: 'NUMBER' },
+          sugar: { type: 'NUMBER' },
+          fibre: { type: 'NUMBER' },
+          sodium: { type: 'NUMBER' },
           confidence: { type: 'NUMBER' },
         },
-        required: ['name', 'grams', 'kcal', 'protein', 'carbs', 'fat', 'confidence'],
+        required: ['name', 'grams', 'kcal', 'protein', 'carbs', 'fat', 'sugar', 'fibre', 'sodium', 'confidence'],
       },
     },
+    question: { type: 'STRING' },
+    choices: { type: 'ARRAY', items: { type: 'STRING' } },
   },
   required: ['items'],
 };
@@ -37,7 +45,7 @@ function round1(n) {
 }
 
 // Accepts the model's text (possibly fenced) or an object.
-// Returns { items } with clean numbers, or throws OutputError.
+// Returns { items, question?, choices? } with clean values, or throws OutputError.
 export function parseEstimate(raw) {
   let obj = raw;
   if (typeof raw === 'string') {
@@ -50,7 +58,16 @@ export function parseEstimate(raw) {
   }
   if (Array.isArray(obj)) obj = { items: obj };
   if (!obj || !Array.isArray(obj.items)) throw new OutputError('Model output has no items list');
-  return { items: obj.items.map(normalizeItem).filter(Boolean) };
+  const out = { items: obj.items.map(normalizeItem).filter(Boolean) };
+  const question = typeof obj.question === 'string' ? obj.question.trim() : '';
+  if (question) {
+    out.question = question;
+    out.choices = (Array.isArray(obj.choices) ? obj.choices : [])
+      .map((c) => String(c ?? '').trim())
+      .filter(Boolean)
+      .slice(0, MAX_CHOICES);
+  }
+  return out;
 }
 
 export function normalizeItem(it) {
@@ -69,25 +86,24 @@ export function normalizeItem(it) {
 }
 
 export function totals(items) {
-  const t = { grams: 0, kcal: 0, protein: 0, carbs: 0, fat: 0 };
+  const t = Object.fromEntries(NUM_FIELDS.map((f) => [f, 0]));
   for (const it of items || []) for (const f of NUM_FIELDS) t[f] += Number(it[f]) || 0;
   for (const f of NUM_FIELDS) t[f] = round1(t[f]);
   return t;
 }
 
-// When grams change, scale energy and macros in proportion.
+// When grams change, scale energy and nutrients in proportion.
 export function scaleItem(item, newGrams) {
   const g = Math.max(0, toNum(newGrams) || 0);
   if (!item.grams) return { ...item, grams: round1(g) };
-  const r = g / item.grams;
-  return {
-    ...item,
-    grams: round1(g),
-    kcal: round1(item.kcal * r),
-    protein: round1(item.protein * r),
-    carbs: round1(item.carbs * r),
-    fat: round1(item.fat * r),
-  };
+  return { ...scaleBy(item, g / item.grams), grams: round1(g) };
+}
+
+// Multiplies the weight and every nutrient by factor. Used by the portion buttons.
+export function scaleBy(item, factor) {
+  const out = { ...item };
+  for (const f of NUM_FIELDS) out[f] = round1((Number(item[f]) || 0) * factor);
+  return out;
 }
 
 // Short display name. Drops bracketed notes and anything after the first comma,

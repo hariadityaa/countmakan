@@ -64,3 +64,25 @@ test('deepseek extractUsage keeps reasoning tokens apart', () => {
   assert.deepEqual(deepseek.extractUsage({ usage }), { input: 1500, output: 600, reasoning: 400 });
   assert.deepEqual(deepseek.extractUsage({ usage: { prompt_tokens: 10, completion_tokens: 5 } }), { input: 10, output: 5 });
 });
+
+test('user text carries follow-up answers and confirmed portions', () => {
+  const input = {
+    text: 'lunch',
+    image: IMG,
+    answers: [{ q: 'How much rice?', a: 'Half plate' }],
+    refs: [{ name: 'Chicken rice', grams: 350, kcal: 600 }],
+  };
+  const text = JSON.parse(gemini.buildRequest('m', input, 'k').init.body).contents[0].parts[0].text;
+  assert.match(text, /Notes from the eater: lunch/);
+  assert.match(text, /You asked: "How much rice\?" The eater answered: "Half plate"/);
+  assert.match(text, /- Chicken rice: 350 g, 600 kcal/);
+  const ds = JSON.parse(deepseek.buildRequest('m', { text: 'bakso', refs: input.refs }, 'k').init.body);
+  assert.match(ds.messages[1].content, /Meal description: bakso\nPortions this eater has confirmed before:/);
+});
+
+test('gemini schema asks for sugar, fibre, sodium and an optional question', () => {
+  const schema = JSON.parse(gemini.buildRequest('m', { text: 'x' }, 'k').init.body).generationConfig.responseSchema;
+  for (const f of ['sugar', 'fibre', 'sodium']) assert.ok(schema.properties.items.items.required.includes(f));
+  assert.ok(schema.properties.question);
+  assert.ok(!schema.required.includes('question'));
+});

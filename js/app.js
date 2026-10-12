@@ -1,6 +1,7 @@
 import { CHAIN, DEFAULT_TARGETS, IMAGE_MAX_PX, THUMB_MAX_PX, PROVIDER_LABELS, OPTIONAL_PROVIDERS } from './config.js';
 import { estimate, testKey } from './chain.js';
-import { totals, scaleItem, normalizeItem, mealTitle } from './schema.js';
+import { totals, scaleItem, scaleBy, normalizeItem, mealTitle } from './schema.js';
+import { loadFavs, saveFavs, favFromEntry, favRefs, mergeFavs, favKcal } from './favs.js';
 import { parseSetupFragment, buildSetupLink, loadKeys, saveKeys, maskKey, PROVIDERS } from './keys.js';
 import { buildExport, parseImport, localDay } from './io.js';
 import { prepareImage } from './image.js';
@@ -10,8 +11,13 @@ import * as health from './health.js';
 import { ringSvg, weekChartSvg, daySeries, macroSplit } from './charts.js';
 
 const $ = (sel) => document.querySelector(sel);
-const MACROS = ['kcal', 'protein', 'carbs', 'fat'];
-const GOAL_LABELS = { kcal: 'Calories', protein: 'Protein (g)', carbs: 'Carbs (g)', fat: 'Fat (g)' };
+const GOALS = ['kcal', 'protein', 'carbs', 'fat', 'sugar', 'fibre', 'sodium'];
+const GOAL_LABELS = {
+  kcal: 'Calories', protein: 'Protein (g)', carbs: 'Carbs (g)', fat: 'Fat (g)',
+  sugar: 'Sugar limit (g)', fibre: 'Fibre (g)', sodium: 'Sodium limit (mg)',
+};
+// Portion buttons: share of the meal as first shown, short label, spoken label.
+const PORTIONS = [[0.5, '½', 'Half'], [0.75, '¾', 'Three quarters'], [1, 'All', 'All of it'], [1.5, '1½', 'One and a half'], [2, '2×', 'Double']];
 const LOW_CONFIDENCE = 0.6;
 const SLOW_MS = 30000;
 const UNDO_MS = 8000;
@@ -22,6 +28,8 @@ const state = {
   entries: [],
   photo: null, // { mime, base64, thumb }
   draft: null, // entry being edited
+  favs: [],
+  answers: [], // [{ q, a }] for the follow-up question
   abort: null, // AbortController for the running estimate
   health: { waiting: 0, needsSignIn: false, error: '' },
 };
@@ -44,6 +52,7 @@ const MACRO_NAMES = { protein: 'Protein', carbs: 'Carbs', fat: 'Fat' };
 const dot = (m) => el('span', { class: `dot ${m}`, 'aria-hidden': 'true' });
 // "● Protein 12 g · ● Carbs 30 g · ● Fat 8 g", each macro in its own colour.
 const macroLine = (t) => MACRO_KEYS.flatMap((m, i) => [i ? ' · ' : '', el('span', { class: 'nowrap' }, dot(m), `${MACRO_NAMES[m]} ${fmt(t[m])} g`)]);
+const extraLine = (t) => `Sugar ${fmt(t.sugar)} g · Fibre ${fmt(t.fibre)} g · Sodium ${fmt(t.sodium)} mg`;
 const hasKeys = () => PROVIDERS.some((p) => state.keys[p]);
 
 function setStatus(node, msg, isError = false) {
@@ -106,6 +115,7 @@ function showTab(name) {
 // One step at a time: add, compose, loading, failure or editor.
 function showStep(step) {
   for (const id of ['add', 'compose', 'loading', 'failure', 'editor']) $(`#${id}`).hidden = id !== step;
+  $('#favs').hidden = step !== 'add' || !hasKeys() || !state.favs.length;
   // While waiting, the rest of the app can't be tapped or reached by keyboard.
   const busy = step === 'loading';
   document.body.classList.toggle('is-busy', busy);
@@ -122,6 +132,7 @@ function showStep(step) {
 function resetAdd() {
   state.photo = null;
   state.draft = null;
+  state.answers = [];
   $('#preview-img').removeAttribute('src');
   $('#meal-text').value = '';
   $('#compose-error').textContent = '';
@@ -137,6 +148,18 @@ function bar(m, value, target) {
       el('span', {}, dot(m), MACRO_NAMES[m]),
       el('span', {}, `${fmt(value)} g of ${fmt(target)} g`, over ? el('span', { class: 'over-tag' }, ' · over') : null)),
     el('div', { class: 'bar', 'aria-hidden': 'true' }, el('i', { class: m, style: `width:${pct}%` })));
+}
+
+// Sugar, fibre and sodium. Neutral, so the macro colours stay unique.
+// isMin marks a goal to reach (fibre), so going past it is not shown as over.
+function limitBar(label, value, target, unit, isMin = false) {
+  const pct = target ? Math.min(100, (value / target) * 100) : 0;
+  const over = !isMin && target && value > target;
+  return el('div', {},
+    el('div', { class: 'bar-label' },
+      el('span', {}, label),
+      el('span', {}, `${fmt(value)} ${unit} of ${fmt(target)} ${unit}`, over ? el('span', { class: 'over-tag' }, ' · over') : null)),
+    el('div', { class: 'bar', 'aria-hidden': 'true' }, el('i', { style: `width:${pct}%` })));
 }
 
 // One strip split by each macro's share of calories.
@@ -168,6 +191,10 @@ function renderSummary() {
         el('div', {}, left >= 0 ? `left of your ${fmt(goal)} goal` : `over your ${fmt(goal)} goal`))),
     splitStrip(t),
     el('div', { class: 'bars' }, MACRO_KEYS.map((m) => bar(m, t[m], state.targets[m]))),
+    el('div', { class: 'bars' },
+      limitBar('Sugar', t.sugar, state.targets.sugar, 'g'),
+      limitBar('Fibre', t.fibre, state.targets.fibre, 'g', true),
+      limitBar('Sodium', t.sodium, state.targets.sodium, 'mg')),
   );
 }
 
@@ -187,6 +214,7 @@ function renderToday() {
   const today = localDay(new Date());
   const list = state.entries.filter((e) => e.day === today);
   $('#today-list').replaceChildren(...(list.length ? list.map(entryRow) : [el('li', { class: 'empty' }, 'No meals yet today. Your first one will show up here.')]));
+  renderFavs();
   renderSummary();
   if (!$('#add').hidden || !$('#welcome').hidden || !$('#not-set-up').hidden) showStep('add');
 }
@@ -257,6 +285,52 @@ function renderHistory() {
     : [el('div', { class: 'card empty' }, 'No meals saved yet. Once you save some, you\'ll see a chart of your week here.')]));
 }
 
+// ---------- Favourites ----------
+function favRow(f) {
+  const kcal = favKcal(f);
+  return el('li', {},
+    el('button', { type: 'button', class: 'entry', 'aria-label': `${f.name}, ${fmt(kcal)} calories. Tap to add it again.`, onclick: () => logAgain(f) },
+      f.thumb ? el('img', { src: f.thumb, alt: '' }) : el('span', { class: 'ph', 'aria-hidden': 'true' }, '★'),
+      el('span', { class: 'meta' }, el('span', { class: 'name' }, f.name), el('span', { class: 'time' }, 'Tap to add again')),
+      el('span', { class: 'cal' }, fmt(kcal), el('small', {}, ' kcal'))));
+}
+
+function renderFavs() {
+  $('#fav-list').replaceChildren(...state.favs.map(favRow));
+}
+
+// Starts a new meal from a favourite or a past meal. No API call.
+function logAgain(src) {
+  openEditor({
+    id: uid(),
+    ts: new Date().toISOString(),
+    items: structuredClone(src.items),
+    provider: src.provider || '',
+    model: src.model || '',
+    source: 'repeat',
+    text: src.text || '',
+    thumb: src.thumb || '',
+    favId: state.favs.some((f) => f.id === src.id) ? src.id : src.favId,
+    isNew: true,
+  });
+}
+
+function toggleFav() {
+  const d = state.draft;
+  const had = state.favs.some((f) => f.id === d.favId);
+  const next = had ? state.favs.filter((f) => f.id !== d.favId) : [favFromEntry(d, d.favId || uid()), ...state.favs];
+  try {
+    state.favs = saveFavs(next);
+  } catch {
+    toast('The phone is full. Remove a favourite first.');
+    return;
+  }
+  d.favId = had ? undefined : next[0].id;
+  renderFavs();
+  renderEditor();
+  toast(had ? 'Removed from favourites.' : 'Saved as a favourite ★');
+}
+
 // ---------- Add a meal ----------
 async function onPhoto(ev) {
   const file = ev.target.files?.[0];
@@ -309,7 +383,13 @@ async function keepAwake() {
   }
 }
 
-async function onEstimate() {
+// Count calories on the compose step starts fresh. Try again keeps any follow-up answer.
+function onEstimate() {
+  state.answers = [];
+  runEstimate();
+}
+
+async function runEstimate() {
   const text = $('#meal-text').value.trim();
   if (!state.photo && !text) {
     showStep('compose');
@@ -336,7 +416,12 @@ async function onEstimate() {
   const slow = setTimeout(() => setLoading('Still working…', "Sorry for the wait. It's still going."), SLOW_MS);
   const lock = await keepAwake();
   try {
-    const input = { text, image: photo ? { mime: state.photo.mime, base64: state.photo.base64 } : null };
+    const input = {
+      text,
+      image: photo ? { mime: state.photo.mime, base64: state.photo.base64 } : null,
+      answers: state.answers,
+      refs: favRefs(state.favs),
+    };
     const out = await estimate(input, state.keys, {
       signal: abort.signal,
       onAttempt: (_step, i) => {
@@ -352,10 +437,14 @@ async function onEstimate() {
       showFailure({ text: MSG.noFood, details: `${out.model}: returned no items` });
       return;
     }
+    // One follow-up round at most, and only when something is uncertain.
+    const unsure = out.items.some((i) => i.confidence < LOW_CONFIDENCE);
+    const ask = out.question && unsure && !state.answers.length ? { question: out.question, choices: out.choices || [] } : null;
     openEditor({
       id: uid(),
-      ts: new Date().toISOString(),
+      ts: state.draft?.isNew ? state.draft.ts : new Date().toISOString(),
       items: out.items,
+      ask,
       provider: out.provider,
       model: out.model,
       usage: out.usage,
@@ -379,7 +468,20 @@ async function onEstimate() {
 function cancelEstimate() {
   state.abort?.abort();
   state.abort = null;
+  // Stopping a follow-up goes back to the first answer, which is still there.
+  if (state.answers.length && state.draft) {
+    state.answers = [];
+    showStep('editor');
+    return;
+  }
   showStep('compose');
+}
+
+function answerQuestion(a) {
+  const answer = String(a || '').trim();
+  if (!answer) return;
+  state.answers = [{ q: state.draft.ask.question, a: answer }];
+  runEstimate();
 }
 
 function showFailure({ text, details }) {
@@ -398,6 +500,9 @@ function toLocalInput(iso) {
 }
 
 function openEditor(entry) {
+  // base is the meal at "All". The portion buttons scale from it, so taps never compound.
+  entry.portion = 1;
+  entry.base = structuredClone(entry.items);
   state.draft = entry;
   showTab('today');
   renderEditor();
@@ -434,12 +539,13 @@ function drawEditor() {
   const items = d.items.map((it, i) => {
     const update = (f) => (v) => {
       d.items[i] = f === 'grams' ? scaleItem(it, v) : normalizeItem({ ...it, [f]: v });
+      d.base[i] = scaleBy(d.items[i], 1 / d.portion);
       renderEditor();
     };
     const id = (f) => `item-${i}-${f}`;
     return el('div', { class: 'item' },
       el('label', { for: id('name') }, 'Food'),
-      el('input', { id: id('name'), value: it.name, onchange: (ev) => { d.items[i] = { ...it, name: ev.target.value }; } }),
+      el('input', { id: id('name'), value: it.name, onchange: (ev) => { d.items[i] = { ...it, name: ev.target.value }; d.base[i] = { ...d.base[i], name: ev.target.value }; } }),
       it.detail ? el('div', { class: 'item-detail' }, it.detail) : null,
       it.confidence < LOW_CONFIDENCE ? el('span', { class: 'badge' }, 'Please check this') : null,
       el('div', { class: 'item-cals' },
@@ -449,29 +555,71 @@ function drawEditor() {
         field(id('protein'), 'Protein g', it.protein, update('protein'), 'm-protein'),
         field(id('carbs'), 'Carbs g', it.carbs, update('carbs'), 'm-carbs'),
         field(id('fat'), 'Fat g', it.fat, update('fat'), 'm-fat')),
-      el('button', { type: 'button', class: 'btn danger', 'aria-label': `Remove this food: ${it.name}`, onclick: () => { d.items.splice(i, 1); renderEditor(); } }, 'Remove this food'));
+      el('div', { class: 'item-macros' },
+        field(id('sugar'), 'Sugar g', it.sugar, update('sugar')),
+        field(id('fibre'), 'Fibre g', it.fibre, update('fibre')),
+        field(id('sodium'), 'Sodium mg', it.sodium, update('sodium'))),
+      el('button', { type: 'button', class: 'btn danger', 'aria-label': `Remove this food: ${it.name}`, onclick: () => { d.items.splice(i, 1); d.base.splice(i, 1); renderEditor(); } }, 'Remove this food'));
   });
   const t = totals(d.items);
+  const isFav = state.favs.some((f) => f.id === d.favId);
   $('#editor').replaceChildren(...[
     el('h2', {}, d.isNew ? "Here's what we found" : 'Change this meal'),
     d.thumb ? el('img', { class: 'editor-photo', src: d.thumb, alt: 'Your meal' }) : null,
+    d.ask ? questionCard(d.ask) : null,
     el('p', { class: 'muted' }, 'If a portion looks wrong, change the grams. The other numbers update by themselves.'),
     items.length ? items : el('p', { class: 'empty' }, 'No food in this meal. Add one below.'),
-    el('button', { type: 'button', class: 'btn', onclick: () => { d.items.push(normalizeItem({ name: 'Food', confidence: 1 })); renderEditor(); } }, '+ Add another food'),
+    el('button', { type: 'button', class: 'btn', onclick: () => { const it = normalizeItem({ name: 'Food', confidence: 1 }); d.items.push(it); d.base.push(scaleBy(it, 1 / d.portion)); renderEditor(); } }, '+ Add another food'),
+    items.length ? portionRow(d) : null,
     el('p', { class: 'total', id: 'editor-total' }, `Total: ${fmt(t.kcal)} calories`),
     el('p', { class: 'total-sub' }, macroLine(t)),
+    el('p', { class: 'total-sub', id: 'editor-extra' }, extraLine(t)),
     el('label', { for: 'entry-time' }, 'Time eaten'),
     el('input', { id: 'entry-time', type: 'datetime-local', value: toLocalInput(d.ts), onchange: (ev) => { if (ev.target.value) d.ts = new Date(ev.target.value).toISOString(); } }),
     el('button', { type: 'button', class: 'btn primary', id: 'save-meal', onclick: saveDraft }, d.isNew ? 'Save meal' : 'Save changes'),
     el('button', { type: 'button', class: 'btn', onclick: closeEditor }, d.isNew ? "Don't save" : 'Cancel'),
+    items.length ? el('button', { type: 'button', class: 'btn', id: 'fav-toggle', 'aria-pressed': String(isFav), onclick: toggleFav }, isFav ? '★ Remove from favourites' : '☆ Save as a favourite') : null,
+    d.isNew ? null : el('button', { type: 'button', class: 'btn', id: 'eat-again', onclick: () => logAgain(d) }, 'I ate this again'),
     d.isNew ? null : el('button', { type: 'button', class: 'btn danger', onclick: deleteDraft }, 'Delete this meal'),
   ].flat().filter(Boolean));
+}
+
+function portionRow(d) {
+  return el('div', { class: 'portion' },
+    el('p', { class: 'portion-label', id: 'portion-label' }, d.isNew ? 'How much did you eat?' : 'Change the amount'),
+    el('div', { class: 'portion-btns', role: 'group', 'aria-labelledby': 'portion-label' },
+      PORTIONS.map(([p, label, spoken]) => el('button', {
+        type: 'button',
+        class: 'btn',
+        'aria-pressed': String(d.portion === p),
+        'aria-label': spoken,
+        onclick: () => {
+          d.portion = p;
+          d.items = d.base.map((it) => scaleBy(it, p));
+          renderEditor();
+        },
+      }, label))));
+}
+
+function questionCard(ask) {
+  const other = el('input', { id: 'ask-other', placeholder: 'Or type your answer', enterkeyhint: 'send' });
+  other.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') answerQuestion(other.value); });
+  return el('div', { class: 'ask', id: 'ask' },
+    el('p', { class: 'ask-title' }, 'One quick question'),
+    el('p', { class: 'ask-q' }, ask.question),
+    el('div', { class: 'ask-choices' }, ask.choices.map((c) => el('button', { type: 'button', class: 'btn', onclick: () => answerQuestion(c) }, c))),
+    el('label', { for: 'ask-other' }, 'Something else?'),
+    other,
+    el('button', { type: 'button', class: 'btn', onclick: () => answerQuestion(other.value) }, 'Send answer'),
+    el('p', { class: 'muted' }, 'Not sure? Skip this and save.'));
 }
 
 async function saveDraft() {
   // Commit an edit that is still focused, so its change event runs first.
   document.activeElement?.blur?.();
   const { isNew, ...entry } = state.draft;
+  // Editor-only state. Not saved.
+  for (const k of ['ask', 'base', 'portion']) delete entry[k];
   entry.day = localDay(entry.ts);
   entry.updatedAt = new Date().toISOString();
   const prev = state.entries.find((x) => x.id === entry.id);
@@ -574,7 +722,7 @@ function renderSettings() {
   $('#key-gemini').value = state.keys.gemini || '';
   $('#key-deepseek').value = state.keys.deepseek || '';
   $('#key-results').replaceChildren(...PROVIDERS.map((p) => el('li', {}, `${PROVIDER_LABELS[p]}: ${maskKey(state.keys[p])}`)));
-  $('#targets').replaceChildren(...MACROS.map((m) => el('div', {},
+  $('#targets').replaceChildren(...GOALS.map((m) => el('div', {},
     el('label', { for: `t-${m}` }, GOAL_LABELS[m]),
     el('input', { id: `t-${m}`, type: 'number', inputmode: 'numeric', min: '0', value: state.targets[m] }))));
   health.preload().catch(() => {});
@@ -624,7 +772,7 @@ async function onMakeLink() {
 }
 
 function onSaveTargets() {
-  for (const m of MACROS) {
+  for (const m of GOALS) {
     const v = Number($(`#t-${m}`).value);
     if (v > 0) state.targets[m] = v;
   }
@@ -634,7 +782,7 @@ function onSaveTargets() {
 }
 
 function onExport() {
-  const data = buildExport(state.entries, state.targets);
+  const data = buildExport(state.entries, state.targets, state.favs);
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = el('a', { href: URL.createObjectURL(blob), download: `makan-meter-${localDay(new Date())}.json` });
   document.body.append(a);
@@ -649,8 +797,9 @@ async function onImport(ev) {
   ev.target.value = '';
   if (!file) return;
   try {
-    const { entries, targets } = parseImport(await file.text());
+    const { entries, targets, favourites } = parseImport(await file.text());
     await db.putMany(entries);
+    if (favourites.length) state.favs = saveFavs(mergeFavs(state.favs, favourites));
     if (targets) {
       state.targets = { ...state.targets, ...targets };
       localStorage.setItem('countmakan.targets', JSON.stringify(state.targets));
@@ -702,6 +851,7 @@ async function boot() {
   state.keys = loadKeys();
   state.targets = loadTargets();
   state.entries = await db.allEntries();
+  state.favs = loadFavs();
 
   for (const b of document.querySelectorAll('nav button')) b.addEventListener('click', () => showTab(b.dataset.tab));
   for (const id of ['#camera', '#upload', '#replace']) $(id).addEventListener('change', onPhoto);
@@ -709,7 +859,7 @@ async function boot() {
   $('#cancel-compose').addEventListener('click', resetAdd);
   $('#estimate').addEventListener('click', onEstimate);
   $('#cancel-estimate').addEventListener('click', cancelEstimate);
-  $('#retry').addEventListener('click', onEstimate);
+  $('#retry').addEventListener('click', () => runEstimate());
   $('#start-over').addEventListener('click', resetAdd);
   $('#save-keys').addEventListener('click', () => {
     state.keys = saveKeys(readKeyInputs());
