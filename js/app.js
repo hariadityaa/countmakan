@@ -151,7 +151,7 @@ function entryRow(e) {
   const time = new Date(e.ts).toLocaleTimeString('en', { hour: 'numeric', minute: '2-digit' });
   return el('li', {},
     el('button', { type: 'button', class: 'entry', 'aria-label': `${names}, ${fmt(t.kcal)} calories, at ${time}. Tap to change.`, onclick: () => openEditor(structuredClone(e)) },
-      e.thumb ? el('img', { src: e.thumb, alt: '' }) : el('span', { class: 'ph', 'aria-hidden': 'true' }, '🍽️'),
+      e.thumb ? el('img', { src: e.thumb, alt: '' }) : el('span', { class: 'ph', 'aria-hidden': 'true' }, '–'),
       el('span', { class: 'meta' }, el('span', { class: 'name' }, names), el('span', { class: 'muted' }, time)),
       el('span', { class: 'cal' }, fmt(t.kcal), el('small', {}, 'calories'))));
 }
@@ -447,7 +447,7 @@ async function onTestKeys() {
   const rows = await Promise.all(PROVIDERS.map(async (p) => {
     if (!keys[p]) return el('li', {}, `${PROVIDER_LABELS[p]}: not set`);
     const r = await testKey(p, keys[p].trim());
-    return el('li', {}, `${r.ok ? '✅' : '❌'} ${PROVIDER_LABELS[p]}: ${r.message}`);
+    return el('li', {}, `${r.ok ? '✓' : '✕'} ${PROVIDER_LABELS[p]}: ${r.message}`);
   }));
   out.replaceChildren(...rows);
 }
