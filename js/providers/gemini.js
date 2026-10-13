@@ -3,7 +3,7 @@ import { SYSTEM_PROMPT, userText } from '../prompt.js';
 import { RESPONSE_SCHEMA, OutputError } from '../schema.js';
 
 export function buildRequest(model, input, key) {
-  const parts = [{ text: userText(input.text, !!input.image) }];
+  const parts = [{ text: userText(input) }];
   if (input.image) parts.push({ inline_data: { mime_type: input.image.mime, data: input.image.base64 } });
   return {
     url: `${ENDPOINTS.gemini}/${encodeURIComponent(model)}:generateContent`,
@@ -39,4 +39,9 @@ export function extractText(json) {
 
 export function errorDetail(json) {
   return json?.error?.message || '';
+}
+
+export function extractUsage(json) {
+  const u = json?.usageMetadata;
+  return u ? { input: u.promptTokenCount || 0, output: (u.candidatesTokenCount || 0) + (u.thoughtsTokenCount || 0) } : null;
 }

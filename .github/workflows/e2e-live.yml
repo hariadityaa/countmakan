@@ -1,0 +1,57 @@
+name: e2e-live
+# Real model calls against the deployed site. Each run spends about 4 Gemini
+# Flash calls from a ~20/day free quota, and DeepSeek credit on fallback.
+# With deepseek_only, about 4 DeepSeek calls and no Gemini quota.
+# Runs by hand, or when this file changes on main. GitHub did not register
+# the workflow for manual runs while it had no push trigger.
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/e2e-live.yml']
+  workflow_dispatch:
+    inputs:
+      expect_sha:
+        description: Fail unless the live sw.js carries this commit (optional)
+        required: false
+      deepseek_only:
+        description: Load only the DeepSeek key, so every case runs on DeepSeek
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Wait for Pages to serve this commit
+        env:
+          SHA: ${{ inputs.expect_sha || github.sha }}
+        run: |
+          want="countmakan-${SHA::7}"
+          for i in $(seq 1 40); do
+            got=$(curl -fsS "https://hariadityaa.github.io/countmakan/sw.js?t=$RANDOM" | grep -oP "CACHE = '\Kcountmakan-[a-z0-9]+" || true)
+            [ "$got" = "$want" ] && { echo "Live: $got"; exit 0; }
+            echo "Live is $got, waiting for $want"; sleep 15
+          done
+          echo "Pages never served $want"; exit 1
+      - name: Run live suite
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          EXPECT_SHA: ${{ inputs.expect_sha || github.sha }}
+          LIVE_OUT: ${{ github.workspace }}/live-results
+          DEEPSEEK_ONLY: ${{ inputs.deepseek_only && '1' || '' }}
+        run: npx playwright test -c tests/live
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-results
+          path: live-results/

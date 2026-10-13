@@ -3,9 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>countmakan</title>
-  <meta name="description" content="Photo or describe a meal. Get calories and macros.">
-  <meta name="theme-color" content="#2f7d4f">
+  <title>Makan Meter</title>
+  <meta name="description" content="Take a photo of your food. Get the calories.">
+  <meta name="theme-color" content="#0a0a0a">
+  <meta name="color-scheme" content="dark">
   <meta name="referrer" content="no-referrer">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
@@ -15,90 +16,217 @@
 </head>
 <body>
   <header class="top">
-    <h1>countmakan</h1>
-    <nav>
-      <button data-tab="today" class="active">Today</button>
-      <button data-tab="history">History</button>
-      <button data-tab="settings">Settings</button>
-    </nav>
+    <h1>Makan Meter</h1>
   </header>
 
   <main>
-    <section id="tab-today">
-      <div class="card" id="summary"></div>
-
-      <div class="card" id="add">
-        <h2>Add a meal</h2>
-        <div class="row">
-          <label class="btn big">📷 Take photo
-            <input type="file" accept="image/*" capture="environment" id="camera" hidden>
-          </label>
-          <label class="btn big">🖼️ Upload
-            <input type="file" accept="image/*" id="upload" hidden>
-          </label>
-        </div>
-        <div id="preview" hidden>
-          <img id="preview-img" alt="Selected meal photo">
-          <button class="link" id="clear-photo">Remove photo</button>
-        </div>
-        <label for="meal-text">Describe the food (optional with a photo)</label>
-        <textarea id="meal-text" rows="2" placeholder="e.g. nasi padang with rendang and sayur nangka, half portion rice"></textarea>
-        <button class="btn primary big" id="estimate">Estimate</button>
-        <p class="status" id="status" role="status"></p>
+    <div class="card promo" id="update" role="status" hidden>
+      <p><strong>A new version of Makan Meter is ready.</strong></p>
+      <button type="button" class="btn primary" id="update-btn">Update now</button>
+    </div>
+    <section id="tab-today" aria-label="Today">
+      <div class="card notice" id="not-set-up" hidden>
+        <h2>Not set up yet</h2>
+        <p>Ask Hari to send you the setup link. Open it on this phone.</p>
+        <p class="muted">Or use your own free Gemini key.</p>
+        <button type="button" class="btn" id="own-key">Use my own key</button>
       </div>
 
+      <div class="card promo" id="install" hidden>
+        <h2>Put Makan Meter on your home screen</h2>
+        <p class="muted">Open it like any other app. It works without internet too.</p>
+        <div class="row">
+          <button type="button" class="btn primary" id="install-yes">Install app</button>
+          <button type="button" class="btn" id="install-no">Not now</button>
+        </div>
+      </div>
+
+      <div class="card welcome" id="welcome" hidden>
+        <h2>Count your calories with a photo</h2>
+        <p>Take a photo of your food before you eat.</p>
+        <p>We'll work out the calories for you.</p>
+        <p>No photo? Tap "Type it in".</p>
+      </div>
+
+      <!-- Step 1: choose how to add a meal -->
+      <div class="card" id="add">
+        <label class="btn hero" id="hero">
+          <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></span>
+          <span>Take a photo</span>
+          <input type="file" accept="image/*" capture="environment" id="camera" class="file-input">
+        </label>
+        <div class="row">
+          <label class="btn">Choose photo
+            <input type="file" accept="image/*" id="upload" class="file-input">
+          </label>
+          <button type="button" class="btn" id="type-meal">Type it in</button>
+        </div>
+      </div>
+
+      <div class="card" id="favs" hidden>
+        <h2>Your favourites</h2>
+        <ul class="entries" id="fav-list"></ul>
+      </div>
+
+      <div class="card" id="summary"></div>
+      <div class="card" id="health-sync" hidden>
+        <p id="health-sync-text"></p>
+        <button type="button" class="btn primary" id="health-sync-btn">Send to Google Health</button>
+      </div>
+
+      <!-- Step 2: check the photo or text before sending -->
+      <div class="card" id="compose" hidden>
+        <h2 id="compose-title">Is this the right photo?</h2>
+        <img id="preview-img" alt="The photo you chose">
+        <label for="meal-text" id="meal-text-label">Anything to add? (optional)</label>
+        <textarea id="meal-text" rows="3" placeholder="For example: half a plate of rice"></textarea>
+        <button type="button" class="btn primary" id="estimate">Count calories</button>
+        <div class="row">
+          <label class="btn" id="choose-another">Change photo
+            <input type="file" accept="image/*" id="replace" class="file-input">
+          </label>
+          <button type="button" class="btn" id="cancel-compose">Cancel</button>
+        </div>
+        <p class="form-error" id="compose-error" role="alert"></p>
+      </div>
+
+      <!-- Step 3b: something went wrong -->
+      <div class="card error-card" id="failure" hidden role="alert">
+        <p class="error-text" id="failure-text"></p>
+        <button type="button" class="btn primary" id="retry">Try again</button>
+        <button type="button" class="btn" id="start-over">Start over</button>
+        <details>
+          <summary>Details</summary>
+          <pre id="failure-details"></pre>
+        </details>
+      </div>
+
+      <!-- Step 4: check and save -->
       <div class="card" id="editor" hidden></div>
 
-      <div class="card">
+      <div class="card" id="meals">
         <h2>Today's meals</h2>
         <ul class="entries" id="today-list"></ul>
       </div>
     </section>
 
-    <section id="tab-history" hidden>
+    <section id="tab-history" aria-label="History" hidden>
       <div id="history"></div>
     </section>
 
-    <section id="tab-settings" hidden>
+    <section id="tab-settings" aria-label="Settings" hidden>
       <div class="card">
-        <h2>API keys</h2>
-        <p class="muted">Keys stay on this phone only.</p>
-        <label for="key-gemini">Gemini key</label>
-        <input id="key-gemini" type="password" autocomplete="off" spellcheck="false">
-        <label for="key-deepseek">DeepSeek key</label>
-        <input id="key-deepseek" type="password" autocomplete="off" spellcheck="false">
-        <div class="row">
-          <button class="btn primary" id="save-keys">Save keys</button>
-          <button class="btn" id="test-keys">Test keys</button>
-        </div>
-        <ul class="muted" id="key-results"></ul>
-        <details>
-          <summary>Make a setup link</summary>
-          <p class="muted">Opening this link on another phone saves these keys there. Treat it like a password.</p>
-          <button class="btn" id="make-link">Copy setup link</button>
+        <h2>Daily goals</h2>
+        <div class="grid2" id="targets"></div>
+        <button type="button" class="btn primary" id="save-targets">Save goals</button>
+        <details id="suggest" class="guide">
+          <summary>Not sure? Suggest for me</summary>
+          <p class="muted">If a doctor gave you goals, or you have kidney disease, use the doctor's numbers instead.</p>
+          <div class="grid2">
+            <div><label for="p-sex">Sex</label>
+              <select id="p-sex"><option value="">Choose</option><option value="female">Female</option><option value="male">Male</option></select></div>
+            <div><label for="p-age">Age</label><input id="p-age" type="number" inputmode="numeric" min="18" max="100"></div>
+            <div><label for="p-height">Height (cm)</label><input id="p-height" type="number" inputmode="numeric" min="120" max="220"></div>
+            <div><label for="p-weight">Weight (kg)</label><input id="p-weight" type="number" inputmode="decimal" min="30" max="250" step="any"></div>
+          </div>
+          <label for="p-activity">How active are you?</label>
+          <select id="p-activity"></select>
+          <label for="p-goal">What do you want?</label>
+          <select id="p-goal"></select>
+          <p class="muted" id="p-hint"></p>
+          <button type="button" class="btn primary" id="suggest-btn">Suggest goals</button>
+          <p class="status" id="suggest-status" role="status"></p>
+          <ul class="muted" id="suggest-reasons"></ul>
         </details>
       </div>
 
       <div class="card">
-        <h2>Daily targets</h2>
-        <div class="grid4" id="targets"></div>
-        <button class="btn primary" id="save-targets">Save targets</button>
+        <h2>Google Health</h2>
+        <p class="muted" id="health-status"></p>
+        <button type="button" class="btn primary" id="health-connect">Connect</button>
+        <button type="button" class="btn" id="health-disconnect">Disconnect</button>
       </div>
 
       <div class="card">
         <h2>Backup</h2>
-        <div class="row">
-          <button class="btn" id="export">Export JSON</button>
-          <label class="btn">Import JSON<input type="file" accept="application/json,.json" id="import" hidden></label>
-        </div>
+        <p class="muted">Keep a copy of all your meals in a file.</p>
+        <button type="button" class="btn" id="export">Save a copy</button>
+        <label class="btn">Restore from a copy
+          <input type="file" accept="application/json,.json" id="import" class="file-input">
+        </label>
         <p class="status" id="io-status" role="status"></p>
       </div>
 
-      <div class="card">
-        <h2>Providers</h2>
+      <details class="card setup" id="setup">
+        <summary>Setup (API keys)</summary>
+        <p class="muted">Keys stay on this phone only.</p>
+        <label for="key-gemini">Gemini API key (free)</label>
+        <input id="key-gemini" type="password" autocomplete="off" spellcheck="false">
+        <details class="guide" id="gemini-guide">
+          <summary>How to get a free Gemini key</summary>
+          <p>About 2 minutes. You don't need a credit card.</p>
+          <ol>
+            <li>Open <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> on this phone or a computer.</li>
+            <li>Sign in with any Google account.</li>
+            <li>If asked, accept the terms.</li>
+            <li>Tap <b>Create API key</b>. If it asks for a project, pick the default one.</li>
+            <li>Copy the key.</li>
+            <li>Come back here and paste it into "Gemini API key". Then tap <b>Save keys</b> and <b>Test keys</b>.</li>
+          </ol>
+          <p class="muted">Good to know:</p>
+          <ul class="muted">
+            <li>The free key has a daily limit. When it's reached, the app switches to a lighter model.</li>
+            <li>On the free tier, Google may use your photos and descriptions to improve its products. Adding billing to the key stops this.</li>
+            <li>Keep the key private. Anyone with it can use your quota.</li>
+          </ul>
+        </details>
+        <details class="guide" id="deepseek-section">
+          <summary>Optional: DeepSeek key (paid)</summary>
+          <p class="muted">Only needed if you have a paid DeepSeek account. The app works with just a Gemini key.</p>
+          <label for="key-deepseek">DeepSeek API key</label>
+          <input id="key-deepseek" type="password" autocomplete="off" spellcheck="false">
+        </details>
+        <div class="row">
+          <button type="button" class="btn primary" id="save-keys">Save keys</button>
+          <button type="button" class="btn" id="test-keys">Test keys</button>
+        </div>
+        <ul class="muted" id="key-results"></ul>
+        <p class="muted">The setup link saves these keys on another phone. Treat it like a password.</p>
+        <button type="button" class="btn" id="make-link">Copy setup link</button>
+        <h3>Provider order</h3>
         <ol class="muted" id="chain"></ol>
-      </div>
+      </details>
     </section>
   </main>
+
+  <!-- Step 3: waiting. Full screen, so there is nothing to tap but Stop. -->
+  <div class="busy" id="loading" role="dialog" aria-modal="true" aria-labelledby="loading-text" hidden>
+    <div class="busy-photo" id="loading-photo">
+      <img id="loading-img" alt="">
+      <span class="scan" aria-hidden="true"></span>
+    </div>
+    <h2 class="busy-title" aria-live="polite"><span class="spinner" aria-hidden="true"></span><span id="loading-text">Counting calories…</span></h2>
+    <ol class="steps" aria-label="Progress">
+      <li id="step-sent" class="now"><span class="dot" aria-hidden="true"></span><span class="label"></span></li>
+      <li id="step-look" class="todo"><span class="dot" aria-hidden="true"></span><span class="label"></span></li>
+      <li id="step-done" class="todo"><span class="dot" aria-hidden="true"></span><span class="label">Show you the results</span></li>
+    </ol>
+    <div class="calm">
+      <p>Please wait. You don't need to do anything.</p>
+      <p id="loading-hint" aria-live="polite">This usually takes under 30 seconds.</p>
+      <p class="elapsed"><span id="elapsed">0</span> seconds so far</p>
+    </div>
+    <button type="button" class="stop" id="cancel-estimate">Stop and go back</button>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden>
+    <span id="toast-text"></span>
+    <button type="button" class="btn" id="toast-action" hidden>Undo</button>
+  </div>
+  <nav aria-label="Main">
+    <button type="button" data-tab="today" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11h16a8 8 0 0 1-16 0z"/><path d="M8 5c0 1.5 1 1.5 1 3M12 4c0 1.5 1 1.5 1 3"/></svg>Today</button>
+    <button type="button" data-tab="history"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>History</button>
+    <button type="button" data-tab="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>Settings</button>
+  </nav>
 </body>
 </html>

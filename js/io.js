@@ -1,6 +1,8 @@
 import { normalizeItem } from './schema.js';
+import { cleanFavs } from './favs.js';
 
-export const EXPORT_VERSION = 1;
+// 2 adds favourites. Version 1 files still restore.
+export const EXPORT_VERSION = 2;
 
 export function localDay(date) {
   const d = new Date(date);
@@ -8,11 +10,11 @@ export function localDay(date) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
-export function buildExport(entries, targets) {
-  return { app: 'countmakan', version: EXPORT_VERSION, exportedAt: new Date().toISOString(), targets, entries };
+export function buildExport(entries, targets, favourites = []) {
+  return { app: 'countmakan', version: EXPORT_VERSION, exportedAt: new Date().toISOString(), targets, entries, favourites };
 }
 
-// Validates an import file. Returns { entries, targets } with clean data.
+// Validates an import file. Returns { entries, targets, favourites } with clean data.
 export function parseImport(text) {
   let data;
   try {
@@ -21,7 +23,7 @@ export function parseImport(text) {
     throw new Error('File is not valid JSON');
   }
   if (!data || data.app !== 'countmakan' || !Array.isArray(data.entries)) {
-    throw new Error('Not a countmakan export');
+    throw new Error('Not a Makan Meter export');
   }
   const entries = [];
   for (const e of data.entries) {
@@ -38,5 +40,9 @@ export function parseImport(text) {
       thumb: typeof e.thumb === 'string' && e.thumb.startsWith('data:image/') ? e.thumb : '',
     });
   }
-  return { entries, targets: data.targets && typeof data.targets === 'object' ? data.targets : null };
+  return {
+    entries,
+    targets: data.targets && typeof data.targets === 'object' ? data.targets : null,
+    favourites: cleanFavs(data.favourites),
+  };
 }

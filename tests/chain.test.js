@@ -109,3 +109,24 @@ test('testKey reports success and failure', async () => {
   assert.equal(bad.ok, false);
   assert.match(bad.message, /401/);
 });
+
+test('cancel stops the chain without trying the next provider', async () => {
+  const ctrl = new AbortController();
+  let calls = 0;
+  const f = (_url, init) => {
+    calls++;
+    return new Promise((_res, rej) => init.signal.addEventListener('abort', () => rej(Object.assign(new Error('aborted'), { name: 'AbortError' }))));
+  };
+  const p = estimate({ text: 'egg' }, KEYS, { chain: CHAIN, fetchFn: f, signal: ctrl.signal });
+  setTimeout(() => ctrl.abort(), 10);
+  await assert.rejects(p, (e) => e.kind === 'cancel');
+  assert.equal(calls, 1);
+});
+
+test('onAttempt reports each real call and usage is returned', async () => {
+  const seen = [];
+  const f = fakeFetch({ g1: res(503, {}), d1: res(200, { ...deepseekOk, usage: { prompt_tokens: 900, completion_tokens: 80 } }) });
+  const out = await estimate({ text: 'egg' }, KEYS, { chain: CHAIN, fetchFn: f, onAttempt: (s, i) => seen.push(`${i}:${s.model}`) });
+  assert.deepEqual(seen, ['0:g1', '1:d1']);
+  assert.deepEqual(out.usage, { input: 900, output: 80 });
+});
