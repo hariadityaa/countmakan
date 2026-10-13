@@ -172,8 +172,8 @@ textarea { padding: var(--s-2) var(--s-3); resize: vertical; }
 
 /* Notices */
 .notice { background: var(--surface-2); border-color: var(--border-strong); font-weight: 600; }
-.welcome { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
-.welcome p { margin: 0 0 var(--s-1); }
+.cta { font-size: 1.5rem; margin-bottom: var(--s-4); }
+#welcome { margin: calc(-1 * var(--s-2)) 0 var(--s-4); }
 
 /* Compose and loading */
 #preview-img, .editor-photo {
@@ -280,6 +280,8 @@ pre { white-space: pre-wrap; word-break: break-word; font: .875rem/1.5 var(--fon
 .item-detail { color: var(--text-2); font-size: .875rem; margin-top: var(--s-1); }
 .entry::after { content: "›"; color: var(--text-3); font-size: 1.5rem; line-height: 1; }
 .empty { color: var(--text-2); padding: var(--s-2) 0; }
+.card.empty { padding: var(--s-6); }
+.card.empty .btn { margin-top: var(--s-4); }
 .day-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s-2); }
 .day-head h2 { margin: 0; }
 .day-total { font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }

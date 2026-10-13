@@ -123,9 +123,11 @@ function showStep(step) {
   for (const n of [$('header.top'), $('main')]) n.inert = busy;
   if (step === 'add') $('#add').hidden = !hasKeys();
   // Summary and meal list only on the home step, so each step has one job.
-  $('#summary').hidden = step !== 'add';
-  $('#health-sync').hidden = step !== 'add' || !showSyncCard();
-  $('#meals').hidden = step !== 'add';
+  // Before setup, an empty dashboard only adds noise. Restored meals still show.
+  const home = step === 'add' && (hasKeys() || state.entries.length > 0);
+  $('#summary').hidden = !home;
+  $('#health-sync').hidden = !home || !showSyncCard();
+  $('#meals').hidden = !home;
   $('#not-set-up').hidden = hasKeys();
   $('#welcome').hidden = !hasKeys() || state.entries.length > 0 || step !== 'add';
 }
@@ -184,7 +186,8 @@ function renderSummary() {
       el('div', { class: 'big-num' }, fmt(t.kcal)),
       el('div', { class: 'ring-unit' }, 'calories')));
   ring.insertAdjacentHTML('afterbegin', ringSvg(t.kcal, goal));
-  $('#summary').replaceChildren(
+  // splitStrip is null before the first meal. replaceChildren would print it as "null".
+  $('#summary').replaceChildren(...[
     el('div', { class: 'muted' }, `Today, ${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}`),
     el('div', { class: 'hero' }, ring,
       el('div', { class: 'hero-text' },
@@ -196,7 +199,7 @@ function renderSummary() {
       limitBar('Sugar', t.sugar, state.targets.sugar, 'g'),
       limitBar('Fibre', t.fibre, state.targets.fibre, 'g', true),
       limitBar('Sodium', t.sodium, state.targets.sodium, 'mg')),
-  );
+  ].filter(Boolean));
 }
 
 // ---------- Meal lists ----------
@@ -283,7 +286,9 @@ function renderHistory() {
   });
   $('#history').replaceChildren(...(cards.length
     ? [weekCard(), ...cards]
-    : [el('div', { class: 'card empty' }, 'No meals saved yet. Once you save some, you\'ll see a chart of your week here.')]));
+    : [el('div', { class: 'card empty' },
+      el('p', {}, 'No meals saved yet. Once you save some, you\'ll see a chart of your week here.'),
+      el('button', { type: 'button', class: 'btn primary', id: 'history-add', onclick: () => showTab('today') }, 'Add your first meal'))]));
 }
 
 // ---------- Favourites ----------

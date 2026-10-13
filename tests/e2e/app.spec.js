@@ -9,6 +9,28 @@ test('without keys the app asks for the setup link', async ({ page }) => {
   await open(page);
   await expect(page.getByText('Ask Hari to send you the setup link.')).toBeVisible();
   await expect(page.locator('#hero')).toBeHidden();
+  // Nothing to count yet, so no empty dashboard.
+  await expect(page.locator('#summary')).toBeHidden();
+  await expect(page.locator('#meals')).toBeHidden();
+});
+
+test('blank state reads cleanly on every tab', async ({ page }) => {
+  await seedKeys(page);
+  await open(page);
+  await expect(page.getByRole('heading', { name: 'What are you eating?' })).toBeVisible();
+  await expect(page.getByText('Snap it before you eat.')).toBeVisible();
+  await expect(page.locator('#summary')).toBeVisible();
+  await expect(page.locator('#summary')).not.toContainText('null');
+  await expect(page.locator('#summary .split')).toHaveCount(0);
+  await expect(page.locator('main')).not.toContainText(/\b(null|undefined|NaN)\b/);
+
+  await page.getByRole('button', { name: 'History' }).click();
+  await expect(page.locator('#history')).toContainText('No meals saved yet.');
+  await page.getByRole('button', { name: 'Add your first meal' }).click();
+  await expect(page.locator('#hero')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await expect(page.locator('main')).not.toContainText(/\b(null|undefined|NaN)\b/);
 });
 
 test('without keys, Use my own key opens Setup with the Gemini guide and DeepSeek folded', async ({ page }) => {
@@ -25,7 +47,7 @@ test('setup link saves keys, strips them from the address and shows the home scr
   await open(page, `#setup?gemini=${KEYS.gemini}&deepseek=${KEYS.deepseek}`);
   await expect(page.locator('#hero')).toBeVisible();
   await expect(page.getByText("You're all set.")).toBeVisible();
-  await expect(page.getByText('Count your calories with a photo')).toBeVisible();
+  await expect(page.getByText('Snap it before you eat.')).toBeVisible();
   expect(page.url()).not.toContain('gemini=');
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('countmakan.keys')));
   expect(saved).toEqual(KEYS);
@@ -166,7 +188,7 @@ test.describe('with keys', () => {
     await page.reload();
     await page.waitForSelector('body[data-ready]', { state: 'attached' });
     await expect(page.locator('#today-list .entry')).toHaveCount(1);
-    await expect(page.getByText('Count your calories with a photo')).toBeHidden();
+    await expect(page.getByText('Snap it before you eat.')).toBeHidden();
 
     await page.getByRole('button', { name: 'History' }).click();
     await expect(page.locator('#history .day-total')).toHaveText('445 calories');
