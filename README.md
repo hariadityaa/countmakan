@@ -8,7 +8,9 @@ Live at https://hariadityaa.github.io/countmakan/
 ## How it works
 - Static HTML and JS. No build step and no server.
 - The browser calls the model APIs directly. API keys stay in the phone's localStorage.
-- Photos are resized to 768 px before the call. Only a 200 px thumbnail is stored, in IndexedDB.
+- The model gets the original photo bytes, never a resized copy. HEIC and files over 12 MB are re-encoded as full-size JPEG.
+- The original photo is stored in IndexedDB with the entry, so the meal list works as a food diary. Tap a meal to see it full size.
+- Backups carry the 200 px thumbnail only. Full photos stay on the phone.
 - Each estimate is a list of items: name, grams, kcal, protein, carbs, fat, sugar, fibre, sodium (mg), confidence.
 - The user can edit every number before saving. Changing grams rescales the rest.
 - Each entry stores the provider, model, token usage and response time.

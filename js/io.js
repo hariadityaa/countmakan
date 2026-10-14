@@ -10,8 +10,10 @@ export function localDay(date) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
+// Full photos stay on the device. Only thumbnails travel in the backup.
 export function buildExport(entries, targets, favourites = []) {
-  return { app: 'countmakan', version: EXPORT_VERSION, exportedAt: new Date().toISOString(), targets, entries, favourites };
+  const slim = entries.map((e) => Object.fromEntries(Object.entries(e).filter(([k]) => k !== 'photo')));
+  return { app: 'countmakan', version: EXPORT_VERSION, exportedAt: new Date().toISOString(), targets, entries: slim, favourites };
 }
 
 // Validates an import file. Returns { entries, targets, favourites } with clean data.

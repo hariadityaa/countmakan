@@ -1,4 +1,8 @@
-// Browser-only helpers. Decode, resize and re-encode a photo as JPEG.
+// Browser-only helpers. The model gets the original photo bytes, never a resized copy.
+const NATIVE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+// Gemini caps a request at 20 MB. Base64 adds a third, so stay under this.
+const MAX_NATIVE_BYTES = 12 * 1024 * 1024;
+
 async function decode(file) {
   if ('createImageBitmap' in window) {
     try {
@@ -18,22 +22,39 @@ async function decode(file) {
   }
 }
 
-function draw(src, maxPx, quality) {
-  const w = src.width;
-  const h = src.height;
-  const s = Math.min(1, maxPx / Math.max(w, h));
+function canvasFor(src, maxPx) {
+  const s = Math.min(1, maxPx / Math.max(src.width, src.height));
   const c = document.createElement('canvas');
-  c.width = Math.round(w * s);
-  c.height = Math.round(h * s);
+  c.width = Math.round(src.width * s);
+  c.height = Math.round(src.height * s);
   c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
-  return c.toDataURL('image/jpeg', quality);
+  return c;
 }
 
-// Returns { mime, base64, thumb } where thumb is a small data URL.
-export async function prepareImage(file, maxPx, thumbPx) {
+const toBlob = (canvas, quality) =>
+  new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not encode photo'))), 'image/jpeg', quality));
+
+function toBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).split(',')[1]);
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(blob);
+  });
+}
+
+// Returns { mime, base64, blob, thumb }. blob is exactly what the model sees.
+// Only formats the APIs reject (HEIC) or files over the size cap are re-encoded, at full resolution.
+export async function prepareImage(file, thumbPx) {
   const src = await decode(file);
-  const full = draw(src, maxPx, 0.85);
-  const thumb = draw(src, thumbPx, 0.7);
-  if (src.close) src.close();
-  return { mime: 'image/jpeg', base64: full.split(',')[1], thumb };
+  try {
+    const thumb = canvasFor(src, thumbPx).toDataURL('image/jpeg', 0.7);
+    let blob = file;
+    if (!NATIVE_MIMES.has(file.type) || file.size > MAX_NATIVE_BYTES) {
+      blob = await toBlob(canvasFor(src, Infinity), 0.92);
+    }
+    return { mime: blob.type, base64: await toBase64(blob), blob, thumb };
+  } finally {
+    if (src.close) src.close();
+  }
 }
