@@ -86,3 +86,9 @@ test('gemini schema asks for sugar, fibre, sodium and an optional question', () 
   assert.ok(schema.properties.question);
   assert.ok(!schema.required.includes('question'));
 });
+
+test('gemini extractUsage keeps thinking tokens apart', () => {
+  const usageMetadata = { promptTokenCount: 1500, candidatesTokenCount: 300, thoughtsTokenCount: 1200 };
+  assert.deepEqual(gemini.extractUsage({ usageMetadata }), { input: 1500, output: 1500, thinking: 1200 });
+  assert.deepEqual(gemini.extractUsage({ usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5 } }), { input: 10, output: 5 });
+});

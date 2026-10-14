@@ -1,6 +1,6 @@
-// Browser-only helpers. The model gets the original photo bytes, never a resized copy.
+// Browser-only helpers. Decode a photo and make the model, diary and thumbnail copies.
 const NATIVE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp']);
-// Gemini caps a request at 20 MB. Base64 adds a third, so stay under this.
+// Files over this are re-encoded even when small in pixels. Gemini caps a request at 20 MB.
 const MAX_NATIVE_BYTES = 12 * 1024 * 1024;
 
 async function decode(file) {
@@ -43,20 +43,20 @@ function toBase64(blob) {
   });
 }
 
-// Returns { mime, base64, keep, thumb }. base64 is exactly what the model sees.
-// keep is the diary copy, capped at keepPx on the long side.
-// Only formats the APIs reject (HEIC) or files over the size cap are re-encoded for the model, at full resolution.
-export async function prepareImage(file, thumbPx, keepPx) {
+// Returns { mime, base64, bytes, keep, thumb }. base64 is exactly what the model sees.
+// The model gets a copy capped at modelPx, re-encoded as JPEG. A photo already that small
+// in a format the APIs take is sent as is. keep is the diary copy, capped at keepPx.
+export async function prepareImage(file, thumbPx, keepPx, modelPx, quality) {
   const src = await decode(file);
   try {
+    const longSide = Math.max(src.width, src.height);
+    const native = NATIVE_MIMES.has(file.type) && file.size <= MAX_NATIVE_BYTES;
     const thumb = canvasFor(src, thumbPx).toDataURL('image/jpeg', 0.7);
-    let blob = file;
-    if (!NATIVE_MIMES.has(file.type) || file.size > MAX_NATIVE_BYTES) {
-      blob = await toBlob(canvasFor(src, Infinity), 0.92);
-    }
-    const small = Math.max(src.width, src.height) <= keepPx;
-    const keep = small ? blob : await toBlob(canvasFor(src, keepPx), 0.9);
-    return { mime: blob.type, base64: await toBase64(blob), keep, thumb };
+    const forModel = native && longSide <= modelPx ? file : await toBlob(canvasFor(src, modelPx), quality);
+    let keep = file;
+    if (longSide > keepPx) keep = await toBlob(canvasFor(src, keepPx), 0.9);
+    else if (!native) keep = await toBlob(canvasFor(src, Infinity), 0.92);
+    return { mime: forModel.type, base64: await toBase64(forModel), bytes: forModel.size, keep, thumb };
   } finally {
     if (src.close) src.close();
   }

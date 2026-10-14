@@ -43,5 +43,8 @@ export function errorDetail(json) {
 
 export function extractUsage(json) {
   const u = json?.usageMetadata;
-  return u ? { input: u.promptTokenCount || 0, output: (u.candidatesTokenCount || 0) + (u.thoughtsTokenCount || 0) } : null;
+  if (!u) return null;
+  // output includes thinking. thinking is kept apart to see how much of the wait it explains.
+  const thinking = u.thoughtsTokenCount || 0;
+  return { input: u.promptTokenCount || 0, output: (u.candidatesTokenCount || 0) + thinking, ...(thinking ? { thinking } : {}) };
 }

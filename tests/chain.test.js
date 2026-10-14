@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { estimate, testKey } from '../js/chain.js';
+import { estimate, testKey, applyOrder, stepId } from '../js/chain.js';
 
 const CHAIN = [
   { provider: 'gemini', model: 'g1', supports: ['text', 'image'] },
@@ -129,4 +129,45 @@ test('onAttempt reports each real call and usage is returned', async () => {
   const out = await estimate({ text: 'egg' }, KEYS, { chain: CHAIN, fetchFn: f, onAttempt: (s, i) => seen.push(`${i}:${s.model}`) });
   assert.deepEqual(seen, ['0:g1', '1:d1']);
   assert.deepEqual(out.usage, { input: 900, output: 80 });
+});
+
+test('each real attempt records how long it took', async () => {
+  let t = 0;
+  const now = () => t;
+  const f = async (url, init) => {
+    t += url.includes('g1') ? 60000 : 5000;
+    return fakeFetch({ g1: res(503, {}), d1: res(200, deepseekOk) })(url, init);
+  };
+  const out = await estimate({ text: 'egg' }, { ...KEYS }, { chain: CHAIN, fetchFn: f, now });
+  assert.deepEqual(out.attempts.map((a) => a.ms), [60000, 5000]);
+});
+
+test('skipped steps carry no time', async () => {
+  const f = fakeFetch({ g1: res(200, geminiOk) });
+  const out = await estimate({ text: 'egg' }, { gemini: 'gk' }, { chain: [CHAIN[1], CHAIN[0]], fetchFn: f });
+  assert.equal(out.attempts[0].skipped, 'no key');
+  assert.equal(out.attempts[0].ms, undefined);
+  assert.equal(typeof out.attempts[1].ms, 'number');
+});
+
+test('applyOrder puts saved steps first, in saved order', () => {
+  const ids = ['gemini:g2', 'deepseek:d1', 'gemini:g1'];
+  assert.deepEqual(applyOrder(CHAIN, ids).map(stepId), ids);
+});
+
+test('applyOrder keeps new steps after saved ones and drops unknown ids', () => {
+  const out = applyOrder(CHAIN, ['gemini:g2', 'gemini:gone']).map(stepId);
+  assert.deepEqual(out, ['gemini:g2', 'gemini:g1', 'deepseek:d1']);
+});
+
+test('applyOrder with nothing saved keeps the default chain', () => {
+  assert.equal(applyOrder(CHAIN, []), CHAIN);
+  assert.equal(applyOrder(CHAIN, null), CHAIN);
+});
+
+test('estimate follows a reordered chain', async () => {
+  const f = fakeFetch({ g2: res(200, geminiOk) });
+  const out = await estimate({ text: 'egg' }, KEYS, { chain: applyOrder(CHAIN, ['gemini:g2']), fetchFn: f });
+  assert.deepEqual(f.calls, ['g2']);
+  assert.equal(out.model, 'g2');
 });
