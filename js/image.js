@@ -43,9 +43,10 @@ function toBase64(blob) {
   });
 }
 
-// Returns { mime, base64, blob, thumb }. blob is exactly what the model sees.
-// Only formats the APIs reject (HEIC) or files over the size cap are re-encoded, at full resolution.
-export async function prepareImage(file, thumbPx) {
+// Returns { mime, base64, keep, thumb }. base64 is exactly what the model sees.
+// keep is the diary copy, capped at keepPx on the long side.
+// Only formats the APIs reject (HEIC) or files over the size cap are re-encoded for the model, at full resolution.
+export async function prepareImage(file, thumbPx, keepPx) {
   const src = await decode(file);
   try {
     const thumb = canvasFor(src, thumbPx).toDataURL('image/jpeg', 0.7);
@@ -53,7 +54,9 @@ export async function prepareImage(file, thumbPx) {
     if (!NATIVE_MIMES.has(file.type) || file.size > MAX_NATIVE_BYTES) {
       blob = await toBlob(canvasFor(src, Infinity), 0.92);
     }
-    return { mime: blob.type, base64: await toBase64(blob), blob, thumb };
+    const small = Math.max(src.width, src.height) <= keepPx;
+    const keep = small ? blob : await toBlob(canvasFor(src, keepPx), 0.9);
+    return { mime: blob.type, base64: await toBase64(blob), keep, thumb };
   } finally {
     if (src.close) src.close();
   }
