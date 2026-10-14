@@ -52,6 +52,13 @@ test('export then import keeps entries', () => {
   assert.equal(favourites[0].name, 'Mee goreng');
 });
 
+test('export leaves full photos out', () => {
+  const entry = { id: 'a2', ts: '2026-10-12T04:30:00.000Z', items: [], photo: { size: 123 }, thumb: 'data:image/jpeg;base64,AA' };
+  const out = buildExport([entry], {});
+  assert.equal('photo' in out.entries[0], false);
+  assert.equal(out.entries[0].thumb, entry.thumb);
+});
+
 test('import rejects foreign files and skips bad entries', () => {
   assert.throws(() => parseImport('nope'), /valid JSON/);
   assert.throws(() => parseImport('{"entries":[]}'), /Not a Makan Meter export/);

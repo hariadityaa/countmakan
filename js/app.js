@@ -1,4 +1,4 @@
-import { CHAIN, DEFAULT_TARGETS, IMAGE_MAX_PX, THUMB_MAX_PX, PROVIDER_LABELS, OPTIONAL_PROVIDERS } from './config.js';
+import { CHAIN, DEFAULT_TARGETS, THUMB_MAX_PX, PROVIDER_LABELS, OPTIONAL_PROVIDERS } from './config.js';
 import { estimate, testKey } from './chain.js';
 import { totals, scaleItem, scaleBy, normalizeItem, mealTitle } from './schema.js';
 import { loadFavs, saveFavs, favFromEntry, favRefs, mergeFavs, favKcal } from './favs.js';
@@ -27,7 +27,8 @@ const state = {
   keys: {},
   targets: { ...DEFAULT_TARGETS },
   entries: [],
-  photo: null, // { mime, base64, thumb }
+  photo: null, // { mime, base64, blob, thumb }
+  photoUrl: '', // object URL for the open entry's full photo
   draft: null, // entry being edited
   favs: [],
   answers: [], // [{ q, a }] for the follow-up question
@@ -345,7 +346,7 @@ async function onPhoto(ev) {
   ev.target.value = '';
   if (!file) return;
   try {
-    state.photo = await prepareImage(file, IMAGE_MAX_PX, THUMB_MAX_PX);
+    state.photo = await prepareImage(file, THUMB_MAX_PX);
   } catch {
     showStep(state.photo ? 'compose' : 'add');
     toast(MSG.photo);
@@ -460,6 +461,7 @@ async function runEstimate() {
       source: photo ? 'photo' : 'text',
       text,
       thumb: state.photo?.thumb || '',
+      photo: state.photo?.blob || null,
       isNew: true,
     });
   } catch (e) {
@@ -512,6 +514,8 @@ function openEditor(entry) {
   entry.portion = 1;
   entry.base = structuredClone(entry.items);
   state.draft = entry;
+  if (state.photoUrl) URL.revokeObjectURL(state.photoUrl);
+  state.photoUrl = entry.photo ? URL.createObjectURL(entry.photo) : '';
   showTab('today');
   renderEditor();
   showStep('editor');
@@ -520,6 +524,8 @@ function openEditor(entry) {
 
 function closeEditor() {
   state.draft = null;
+  if (state.photoUrl) URL.revokeObjectURL(state.photoUrl);
+  state.photoUrl = '';
   $('#editor').replaceChildren();
   resetAdd();
 }
@@ -573,7 +579,7 @@ function drawEditor() {
   const isFav = state.favs.some((f) => f.id === d.favId);
   $('#editor').replaceChildren(...[
     el('h2', {}, d.isNew ? "Here's what we found" : 'Change this meal'),
-    d.thumb ? el('img', { class: 'editor-photo', src: d.thumb, alt: 'Your meal' }) : null,
+    state.photoUrl || d.thumb ? el('img', { class: 'editor-photo', src: state.photoUrl || d.thumb, alt: 'Your meal' }) : null,
     d.ask ? questionCard(d.ask) : null,
     el('p', { class: 'muted' }, 'If a portion looks wrong, change the grams. The other numbers update by themselves.'),
     items.length ? items : el('p', { class: 'empty' }, 'No food in this meal. Add one below.'),

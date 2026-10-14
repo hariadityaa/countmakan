@@ -24,8 +24,6 @@ export const TIMEOUT_MS = 60000;
 // Caps paid output. A 10-item answer with sugar, fibre, sodium and a question is about 900 tokens.
 export const MAX_OUTPUT_TOKENS = 1500;
 
-// 768 px keeps image tokens down. Plates stay legible at this size.
-export const IMAGE_MAX_PX = 768;
 export const THUMB_MAX_PX = 200;
 
 // sugar and sodium are limits. fibre is a minimum. sodium is milligrams.
