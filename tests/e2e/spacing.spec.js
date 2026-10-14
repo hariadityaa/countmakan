@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { NASI, geminiBody, mockModels, seedKeys, open, PLATE } from './helpers.js';
+import { NASI, geminiBody, mockModels, seedKeys, open, PLATE, mockHealth, connect } from './helpers.js';
 
 // Every card should end where its content ends, plus its own padding.
 // Empty status lines or lists must not leave a blank band at the bottom.
@@ -35,7 +35,7 @@ function cardGaps() {
     const s = getComputedStyle(card);
     const r = card.getBoundingClientRect();
     const ink = inks(card);
-    if (ink.bottom < 0) continue;
+    if (ink.bottom === -Infinity) continue;
     out.push({
       card: card.id || card.querySelector('h2, summary')?.textContent.trim() || card.className,
       top: Math.round(ink.top - r.top - parseFloat(s.borderTopWidth)),
@@ -86,7 +86,10 @@ for (const width of [360, 412]) {
         e.userChoice = Promise.resolve({ outcome: 'dismissed' });
         window.dispatchEvent(e);
       });
+      // The update banner needs a new service worker; layout only needs it shown.
+      await page.evaluate(() => { document.querySelector('#update').hidden = false; });
       await check(page, 'home');
+      await page.evaluate(() => { document.querySelector('#update').hidden = true; });
 
       await page.locator('nav button[data-tab=history]').click();
       await check(page, 'history empty');
@@ -107,7 +110,9 @@ for (const width of [360, 412]) {
       await page.getByRole('button', { name: 'Count calories' }).click();
       await expect(page.locator('#editor-total')).toBeVisible();
       await check(page, 'results');
+      await page.getByRole('button', { name: '☆ Save as a favourite' }).click();
       await page.getByRole('button', { name: 'Save meal' }).click();
+      await expect(page.locator('#favs')).toBeVisible();
       await expect(page.locator('#today-list .entry')).toHaveCount(1);
       await check(page, 'saved');
 
@@ -119,6 +124,45 @@ for (const width of [360, 412]) {
 
       await page.locator('nav button[data-tab=history]').click();
       await check(page, 'history');
+    });
+
+    test('no card has a blank band with Google Health connected', async ({ page }) => {
+      await mockModels(page, { 'gemini-3.8-flash': { status: 200, body: geminiBody(NASI) } });
+      await mockHealth(page);
+      await open(page);
+      // A meal saved before connecting, so Send past meals has something to offer.
+      await page.setInputFiles('#upload', PLATE);
+      await page.getByRole('button', { name: 'Count calories' }).click();
+      await page.getByRole('button', { name: 'Save meal' }).click();
+      await expect(page.locator('#today-list .entry')).toHaveCount(1);
+      await connect(page);
+      await expect(page.locator('#health-past')).toBeVisible();
+      await check(page, 'health on, past meals');
+      await page.getByRole('button', { name: 'Send 1 meal' }).click();
+      await expect(page.locator('#health-past')).toBeHidden();
+      await check(page, 'health on');
+      await page.getByRole('switch', { name: 'Send new meals' }).uncheck();
+      await check(page, 'health off');
+    });
+
+    test('no card has a blank band on the Google Health send card', async ({ page }) => {
+      await mockModels(page, { 'gemini-3.8-flash': { status: 200, body: geminiBody(NASI) } });
+      await mockHealth(page);
+      // Was connected, but this session has no sign-in yet: saved meals wait on Today.
+      await page.addInitScript(() => localStorage.setItem('countmakan.health', 'true'));
+      await open(page);
+      await page.setInputFiles('#upload', PLATE);
+      await page.getByRole('button', { name: 'Count calories' }).click();
+      await page.getByRole('button', { name: 'Save meal' }).click();
+      await expect(page.locator('#health-sync')).toBeVisible();
+      await check(page, 'health send card');
+    });
+
+    test('no card has a blank band before setup', async ({ page }) => {
+      await page.addInitScript(() => localStorage.removeItem('countmakan.keys'));
+      await open(page);
+      await expect(page.locator('#not-set-up')).toBeVisible();
+      await check(page, 'not set up');
     });
 
     test('no card has a blank band on the failure screen', async ({ page }) => {
