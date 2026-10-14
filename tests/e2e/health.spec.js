@@ -1,31 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { NASI, geminiBody, mockModels, seedKeys, open, photoEstimate } from './helpers.js';
-
-// Stands in for Google's sign-in script. Each requestAccessToken returns a fresh token.
-const FAKE_GIS = `
-  let n = 0;
-  window.google = { accounts: { oauth2: {
-    initTokenClient: (cfg) => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok' + (++n), expires_in: 3599, scope: cfg.scope })) }),
-    hasGrantedAllScopes: () => true,
-    revoke: (_t, cb) => cb && cb(),
-  } } };`;
-
-// Records Health API calls. Created logs are named n/1, n/2, ...
-async function mockHealth(page) {
-  const calls = [];
-  await page.route('https://accounts.google.com/gsi/client', (r) => r.fulfill({ contentType: 'text/javascript', body: FAKE_GIS }));
-  await page.route(/health\.googleapis\.com/, async (route) => {
-    const req = route.request();
-    const body = req.postData() ? JSON.parse(req.postData()) : null;
-    calls.push({ method: req.method(), url: req.url(), body });
-    const created = calls.filter((c) => c.method === 'POST' && !c.url.includes(':batchDelete')).length;
-    const reply = req.method() === 'POST' && !req.url().includes(':batchDelete')
-      ? { done: true, response: { name: `n/${created}` } }
-      : { done: true };
-    await route.fulfill({ contentType: 'application/json', body: JSON.stringify(reply) });
-  });
-  return calls;
-}
+import { NASI, geminiBody, mockModels, seedKeys, open, photoEstimate, mockHealth, connect } from './helpers.js';
 
 const posts = (calls) => calls.filter((c) => c.method === 'POST' && !c.url.includes(':batchDelete'));
 const deletes = (calls) => calls.filter((c) => c.url.includes(':batchDelete'));
@@ -118,12 +92,6 @@ test('off by default: saving a meal calls nothing', async ({ page }) => {
   await expect(page.locator('#health-sync')).toBeHidden();
   expect(calls).toHaveLength(0);
 });
-
-async function connect(page) {
-  await page.getByRole('button', { name: 'Settings' }).click();
-  await page.getByRole('button', { name: 'Connect' }).click();
-  await expect(page.locator('#toast')).toHaveText('Connected to Google Health ✓');
-}
 
 test('sync off: new meals stay local, deletes wait, past meals send on demand', async ({ page }) => {
   test.setTimeout(45000);
