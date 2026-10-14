@@ -170,3 +170,61 @@ test('a meal deleted while sending gets its new log queued for delete', async ()
   await health.sync({ entries: [...db.rows.values()], save, fetchImpl: fakeFetch(() => created('n/9')), now: NOW });
   assert.deepEqual(health.queuedDeletes().map((d) => d.name), ['n/9']);
 });
+
+test('paused: connected but nothing is sent, and edits wait for resume', async () => {
+  connect();
+  health.setPaused(true);
+  assert.equal(health.isConnected(), true);
+  assert.equal(health.isOn(), false);
+  health.queueDelete('n/9', { ripeNow: true, now: NOW });
+  const f = fakeFetch(() => created('x'));
+  const db = memDb([entry('a')]);
+  const r = await health.sync({ entries: [...db.rows.values()], save: db.save, fetchImpl: f, now: NOW });
+  assert.equal(f.calls.length, 0);
+  assert.equal(r.waiting, 0);
+  assert.equal(health.waitingCount([...db.rows.values()]), 2);
+
+  health.setPaused(false);
+  await health.sync({ entries: [...db.rows.values()], save: db.save, fetchImpl: f, now: NOW });
+  assert.deepEqual(f.calls.map((c) => c.method), ['POST', 'POST']);
+  assert.deepEqual(f.calls[0].body, { names: ['n/9'] });
+  assert.equal(db.rows.get('a').gh.state, 'done');
+});
+
+test('disconnect also clears pause', () => {
+  connect();
+  health.setPaused(true);
+  globalThis.window = {};
+  health.disconnect();
+  delete globalThis.window;
+  connect();
+  assert.equal(health.isOn(), true);
+});
+
+test('unsent picks never-sent and failed meals inside the day range', () => {
+  const now = new Date(2026, 9, 12, 9).getTime();
+  const day = (d, h = 12) => new Date(2026, 9, d, h).toISOString();
+  const list = [
+    { id: 'today', ts: day(12, 8) },
+    { id: 'six-days', ts: day(6, 0) },
+    { id: 'seven-days', ts: day(5, 23) },
+    { id: 'failed', ts: day(11), gh: { state: 'failed' } },
+    { id: 'done', ts: day(11), gh: { state: 'done', name: 'n/1' } },
+    { id: 'pending', ts: day(11), gh: { state: 'pending' } },
+    { id: 'old', ts: day(1) },
+  ];
+  const ids = (days) => health.unsent(list, days, now).map((e) => e.id);
+  assert.deepEqual(ids(7), ['today', 'six-days', 'failed']);
+  assert.deepEqual(ids(30), ['today', 'six-days', 'seven-days', 'failed', 'old']);
+  assert.deepEqual(ids(null), ids(30));
+});
+
+test('sync reports progress after each meal', async () => {
+  connect();
+  const db = memDb([entry('a'), entry('b', { ts: at(19) })]);
+  let n = 0;
+  const f = fakeFetch(() => created(`n/${++n}`));
+  const seen = [];
+  await health.sync({ entries: [...db.rows.values()], save: db.save, onProgress: (w) => seen.push(w), fetchImpl: f, now: NOW });
+  assert.deepEqual(seen, [1, 0]);
+});

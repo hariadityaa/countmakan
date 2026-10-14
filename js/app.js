@@ -33,6 +33,8 @@ const state = {
   answers: [], // [{ q, a }] for the follow-up question
   abort: null, // AbortController for the running estimate
   health: { waiting: 0, needsSignIn: false, error: '' },
+  healthRange: 7, // Days for "Send past meals". Null means all.
+  healthBusy: false,
 };
 
 function el(tag, attrs = {}, ...kids) {
@@ -673,6 +675,8 @@ async function deleteDraft() {
 // ---------- Google Health ----------
 const showSyncCard = () => health.isOn() && state.health.needsSignIn && state.health.waiting > 0;
 const changes = (n) => (n === 1 ? '1 meal is' : `${n} meals are`);
+const meals = (n) => (n === 1 ? '1 meal' : `${n} meals`);
+const RANGES = [[7, '7 days'], [30, '30 days'], [null, 'All']];
 
 async function syncHealth() {
   if (!health.isOn()) return;
@@ -683,6 +687,10 @@ async function syncHealth() {
       await db.putEntry(e);
       return true;
     },
+    onProgress: (waiting) => {
+      state.health = { ...state.health, waiting };
+      renderHealth();
+    },
   });
   state.entries = await db.allEntries();
   renderHealth();
@@ -692,17 +700,57 @@ function renderHealth() {
   const { waiting, error } = state.health;
   $('#health-sync-text').textContent = `${changes(waiting)} not in Google Health yet.`;
   $('#health-sync').hidden = $('#summary').hidden || !showSyncCard();
+  const connected = health.isConnected();
   const on = health.isOn();
   const failed = state.entries.filter((e) => e.gh?.state === 'failed').length;
-  const lines = on
-    ? ['On. New meals also go to the Google Health app.',
-      waiting ? `${changes(waiting)} waiting to send.` : '',
-      failed ? `${changes(failed)} could not be sent.` : '',
-      error ? `Last try failed: ${error}` : '']
-    : ['Send each new meal to the Google Health app.'];
+  const held = health.waitingCount(state.entries);
+  const lines = !connected
+    ? ['Send each new meal to the Google Health app.']
+    : on
+      ? [state.healthBusy && waiting ? `Sending. ${changes(waiting)} left.` : 'On. New meals also go to the Google Health app.',
+        !state.healthBusy && waiting ? `${changes(waiting)} waiting to send.` : '',
+        failed ? `${meals(failed)} could not be sent.` : '',
+        error ? `Last try failed: ${error}` : '']
+      : ['Off. New meals stay in this app only.',
+        held ? `${held === 1 ? '1 change waits' : `${held} changes wait`} until you turn it back on.` : ''];
   $('#health-status').textContent = lines.filter(Boolean).join(' ');
-  $('#health-connect').hidden = on;
-  $('#health-disconnect').hidden = !on;
+  $('#health-on-row').hidden = !connected;
+  $('#health-on').checked = on;
+  $('#health-connect').hidden = connected;
+  $('#health-disconnect').hidden = !connected;
+  renderPastMeals(on);
+}
+
+function renderPastMeals(on) {
+  const all = health.unsent(state.entries, null).length;
+  $('#health-past').hidden = !on || (!all && !state.healthBusy);
+  if ($('#health-past').hidden) return;
+  const n = health.unsent(state.entries, state.healthRange).length;
+  $('#health-range').replaceChildren(...RANGES.map(([days, label]) => el('button', {
+    type: 'button',
+    class: 'btn',
+    'aria-pressed': String(state.healthRange === days),
+    onclick: () => { state.healthRange = days; renderHealth(); },
+  }, label)));
+  const span = state.healthRange ? `in the last ${state.healthRange} days` : 'in total';
+  $('#health-past-text').textContent = n ? `${meals(n)} ${span} not sent yet.` : `No unsent meals ${span}.`;
+  const btn = $('#health-past-btn');
+  btn.textContent = state.healthBusy ? 'Sending…' : n ? `Send ${meals(n)}` : 'Send past meals';
+  btn.disabled = state.healthBusy || !n;
+}
+
+// Signs in only when the token has run out. A tap counts as the user gesture for the popup.
+async function sendNow() {
+  if (!health.validToken()) {
+    try {
+      await health.getToken();
+    } catch (e) {
+      toast(`Google Health: ${e.message}`);
+      return false;
+    }
+  }
+  await syncHealth();
+  return true;
 }
 
 async function onHealthSignIn(okText) {
@@ -714,6 +762,50 @@ async function onHealthSignIn(okText) {
   }
   await syncHealth();
   toast(state.health.error ? `Google Health: ${state.health.error}` : okText);
+}
+
+async function onHealthSendCard() {
+  if (!(await sendNow())) return;
+  toast(state.health.error ? `Google Health: ${state.health.error}` : 'Sent to Google Health ✓');
+}
+
+async function onHealthToggle(ev) {
+  const on = ev.target.checked;
+  health.setPaused(!on);
+  if (!on) {
+    state.health = { waiting: 0, needsSignIn: false, error: '' };
+    renderHealth();
+    toast('Google Health sync is off.');
+    return;
+  }
+  renderHealth();
+  if (health.waitingCount(state.entries) && !(await sendNow())) return;
+  toast(state.health.error ? `Google Health: ${state.health.error}` : 'Google Health sync is on ✓');
+}
+
+async function onSendPastMeals() {
+  const list = health.unsent(state.entries, state.healthRange);
+  if (!list.length || state.healthBusy) return;
+  state.healthBusy = true;
+  await db.putMany(list.map((e) => ({ ...e, gh: { state: 'pending' } })));
+  state.entries = await db.allEntries();
+  renderHealth();
+  try {
+    if (!(await sendNow())) return;
+    // A sync already running holds the old list, so one more pass picks up the rest.
+    if (state.health.waiting && !state.health.error && !state.health.needsSignIn) await syncHealth();
+  } finally {
+    state.healthBusy = false;
+    renderHealth();
+  }
+  const { waiting, error } = state.health;
+  const ids = new Set(list.map((e) => e.id));
+  const sent = state.entries.filter((e) => ids.has(e.id) && e.gh?.state === 'done').length;
+  const failed = state.entries.filter((e) => ids.has(e.id) && e.gh?.state === 'failed').length;
+  if (error) toast(`Google Health: ${error}`);
+  else if (waiting) toast(`${changes(waiting)} still waiting. Try again soon.`);
+  else if (failed) toast(`Sent ${meals(sent)}. ${meals(failed)} could not be sent.`);
+  else toast(`Sent ${meals(sent)} to Google Health ✓`);
 }
 
 function onHealthDisconnect() {
@@ -963,7 +1055,9 @@ async function boot() {
   $('#install-no').addEventListener('click', onDeclineInstall);
   $('#health-connect').addEventListener('click', () => onHealthSignIn('Connected to Google Health ✓'));
   $('#health-disconnect').addEventListener('click', onHealthDisconnect);
-  $('#health-sync-btn').addEventListener('click', () => onHealthSignIn('Sent to Google Health ✓'));
+  $('#health-on').addEventListener('change', onHealthToggle);
+  $('#health-past-btn').addEventListener('click', onSendPastMeals);
+  $('#health-sync-btn').addEventListener('click', onHealthSendCard);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) syncHealth(); });
   renderInstall();
 
