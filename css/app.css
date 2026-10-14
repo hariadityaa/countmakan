@@ -225,6 +225,8 @@ body.is-busy { overflow: hidden; }
 .error-card { background: var(--surface-2); border-color: var(--red); }
 .error-text { font-size: 1.125rem; margin: 0 0 var(--s-2); }
 details summary { min-height: var(--control-h); display: flex; align-items: center; cursor: pointer; font-weight: 600; }
+/* A closed details at the end of a card: let its tap row's slack overlap the padding, so the text sits 24px from the edge. */
+.card > details:last-child:not([open]) { margin-bottom: calc(-1 * var(--s-2)); }
 pre { white-space: pre-wrap; word-break: break-word; font: .875rem/1.5 var(--font-mono); color: var(--text-2); margin: 0; }
 
 /* Editor */
@@ -280,6 +282,7 @@ pre { white-space: pre-wrap; word-break: break-word; font: .875rem/1.5 var(--fon
 .item-detail { color: var(--text-2); font-size: .875rem; margin-top: var(--s-1); }
 .entry::after { content: "›"; color: var(--text-3); font-size: 1.5rem; line-height: 1; }
 .empty { color: var(--text-2); padding: var(--s-2) 0; }
+.entries > .empty { padding: 0; }
 .card.empty { padding: var(--s-6); }
 .card.empty .btn { margin-top: var(--s-4); }
 .day-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s-2); }
@@ -289,7 +292,11 @@ pre { white-space: pre-wrap; word-break: break-word; font: .875rem/1.5 var(--fon
 /* Settings */
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 var(--s-3); }
 .setup summary { font-size: 1.25rem; }
+/* A summary centres its text in a 40px tap row. Trim the card padding by that slack so the text sits 24px from the edge. */
+.card.setup { padding-top: var(--s-4); }
+.card.setup:not([open]) { padding-bottom: var(--s-4); }
 .setup li { margin: var(--s-1) 0; }
+.setup li:last-child { margin-bottom: 0; }
 .guide { margin-top: var(--s-2); }
 .guide summary { font-size: 1rem; }
 .guide ol, .guide ul { padding-left: var(--s-6); margin: var(--s-2) 0; }
@@ -297,7 +304,10 @@ pre { white-space: pre-wrap; word-break: break-word; font: .875rem/1.5 var(--fon
 .guide code { font-family: var(--font-mono); }
 .status { min-height: 1.5em; margin: var(--s-2) 0 0; font-size: .875rem; color: var(--text-2); }
 .status.error { color: var(--red); }
-#suggest-reasons { padding-left: var(--s-6); margin: var(--s-2) 0 0; }
+#suggest-reasons:not(:empty) { padding-left: var(--s-6); margin: var(--s-2) 0 0; }
+/* Nothing to say yet: take no space, so the card ends at its last button. */
+:is(p, ul, ol):empty { min-height: 0; margin: 0; }
+.card > :last-child { margin-bottom: 0; }
 #targets input.suggested { border-color: var(--green); box-shadow: 0 0 0 1px var(--green); }
 
 /* Toast: inverted, the only element with a shadow. Sits above the tab bar. */
