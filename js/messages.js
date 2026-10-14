@@ -16,7 +16,7 @@ export const MSG = {
 export function describeFailure(err, online = true) {
   const tried = (err?.attempts || []).filter((a) => !a.skipped);
   const details = tried.length
-    ? tried.map((a) => `${a.model}: ${a.error || 'ok'}`).join('\n')
+    ? tried.map((a) => `${a.model}: ${a.error || 'ok'}${a.ms != null ? ` (${secs(a.ms)})` : ''}`).join('\n')
     : String(err?.message || err || 'Unknown error');
   const kind = classify(tried, online);
   return { kind, text: MSG[kind], details };
@@ -33,4 +33,22 @@ function classify(tried, online) {
   if (kinds.every((k) => k === 'output')) return 'unreadable';
   if (kinds.some((k) => k === 'http' || k === 'timeout' || k === 'network' || k === 'output')) return 'busy';
   return 'other';
+}
+
+const secs = (ms) => `${(ms / 1000).toFixed(1)} s`;
+
+// One line on how a scan went, for the editor and the console.
+// e.g. "gemini-3.8-flash timed out after 60.0 s → gemini-3.5-flash-lite 6.2 s · photo 340 KB · 1,200 thinking tokens"
+export function scanSummary(attempts = [], { photoBytes, usage } = {}) {
+  const steps = attempts.filter((a) => !a.skipped).map((a) => {
+    const t = a.ms != null ? secs(a.ms) : '';
+    if (a.ok) return `${a.model} ${t}`.trim();
+    const why = a.kind === 'timeout' ? 'timed out' : a.status ? `failed (${a.status})` : `failed (${a.error || a.kind})`;
+    return `${a.model} ${why}${t ? ` after ${t}` : ''}`;
+  });
+  const parts = [steps.join(' → ')];
+  if (photoBytes) parts.push(`photo ${Math.round(photoBytes / 1024).toLocaleString('en')} KB`);
+  const thinking = usage?.thinking ?? usage?.reasoning;
+  if (thinking) parts.push(`${thinking.toLocaleString('en')} thinking tokens`);
+  return parts.filter(Boolean).join(' · ');
 }

@@ -344,3 +344,10 @@ pre { white-space: pre-wrap; word-break: break-word; font: .875rem/1.5 var(--fon
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+/* Provider order */
+.chain { padding-left: var(--s-4); margin: var(--s-2) 0 0; }
+.chain-step { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); }
+.chain-btns { display: flex; gap: var(--s-2); flex: none; }
+.chain-btns .btn { width: var(--control-h); padding: 0; margin: 0; }
+.scan-details { margin-top: var(--s-3); font-size: .875rem; overflow-wrap: anywhere; }

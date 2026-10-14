@@ -1,11 +1,11 @@
-import { CHAIN, DEFAULT_TARGETS, THUMB_MAX_PX, KEEP_MAX_PX, PROVIDER_LABELS, OPTIONAL_PROVIDERS } from './config.js';
-import { estimate, testKey } from './chain.js';
+import { CHAIN, DEFAULT_TARGETS, THUMB_MAX_PX, KEEP_MAX_PX, MODEL_MAX_PX, MODEL_JPEG_QUALITY, PROVIDER_LABELS, OPTIONAL_PROVIDERS } from './config.js';
+import { estimate, testKey, applyOrder, stepId } from './chain.js';
 import { totals, scaleItem, scaleBy, normalizeItem, mealTitle } from './schema.js';
 import { loadFavs, saveFavs, favFromEntry, favRefs, mergeFavs, favKcal } from './favs.js';
 import { parseSetupFragment, buildSetupLink, loadKeys, saveKeys, maskKey, PROVIDERS } from './keys.js';
 import { buildExport, parseImport, localDay } from './io.js';
 import { prepareImage } from './image.js';
-import { describeFailure, MSG } from './messages.js';
+import { describeFailure, scanSummary, MSG } from './messages.js';
 import * as db from './db.js';
 import * as health from './health.js';
 import { ringSvg, weekChartSvg, daySeries, macroSplit } from './charts.js';
@@ -27,7 +27,8 @@ const state = {
   keys: {},
   targets: { ...DEFAULT_TARGETS },
   entries: [],
-  photo: null, // { mime, base64, keep, thumb }
+  photo: null, // { mime, base64, bytes, keep, thumb }
+  order: [], // saved provider order, as step ids. Empty means the default CHAIN order.
   photoUrl: '', // object URL for the open entry's full photo
   draft: null, // entry being edited
   favs: [],
@@ -62,6 +63,28 @@ const hasKeys = () => PROVIDERS.some((p) => state.keys[p]);
 function setStatus(node, msg, isError = false) {
   node.textContent = msg;
   node.classList.toggle('error', isError);
+}
+
+const ORDER_KEY = 'countmakan.order';
+const chain = () => applyOrder(CHAIN, state.order);
+
+function loadOrder() {
+  try {
+    const ids = JSON.parse(localStorage.getItem(ORDER_KEY));
+    return Array.isArray(ids) ? ids : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveOrder(ids) {
+  state.order = ids;
+  try {
+    if (ids.length) localStorage.setItem(ORDER_KEY, JSON.stringify(ids));
+    else localStorage.removeItem(ORDER_KEY);
+  } catch {
+    // Storage blocked. The order still holds until the app closes.
+  }
 }
 
 function loadTargets() {
@@ -346,7 +369,7 @@ async function onPhoto(ev) {
   ev.target.value = '';
   if (!file) return;
   try {
-    state.photo = await prepareImage(file, THUMB_MAX_PX, KEEP_MAX_PX);
+    state.photo = await prepareImage(file, THUMB_MAX_PX, KEEP_MAX_PX, MODEL_MAX_PX, MODEL_JPEG_QUALITY);
   } catch {
     showStep(state.photo ? 'compose' : 'add');
     toast(MSG.photo);
@@ -432,6 +455,7 @@ async function runEstimate() {
       refs: favRefs(state.favs),
     };
     const out = await estimate(input, state.keys, {
+      chain: chain(),
       signal: abort.signal,
       onAttempt: (_step, i) => {
         setStep('sent', 'done', photo ? 'Photo sent' : 'Description sent');
@@ -442,8 +466,10 @@ async function runEstimate() {
         }
       },
     });
+    const scan = scanSummary(out.attempts, { photoBytes: photo ? state.photo.bytes : 0, usage: out.usage });
+    console.info(`Scan: ${scan}`);
     if (!out.items.length) {
-      showFailure({ text: MSG.noFood, details: `${out.model}: returned no items` });
+      showFailure({ text: MSG.noFood, details: `${out.model}: returned no items\n${scan}` });
       return;
     }
     // One follow-up round at most, and only when something is uncertain.
@@ -458,6 +484,7 @@ async function runEstimate() {
       model: out.model,
       usage: out.usage,
       ms: Math.round(performance.now() - started),
+      scan,
       source: photo ? 'photo' : 'text',
       text,
       thumb: state.photo?.thumb || '',
@@ -466,7 +493,9 @@ async function runEstimate() {
     });
   } catch (e) {
     if (abort.signal.aborted) return; // Stop already moved the screen back.
-    showFailure(describeFailure(e, navigator.onLine));
+    const failure = describeFailure(e, navigator.onLine);
+    console.info(`Scan failed:\n${failure.details}`);
+    showFailure(failure);
   } finally {
     clearTimeout(slow);
     clearInterval(tick);
@@ -595,6 +624,7 @@ function drawEditor() {
     items.length ? el('button', { type: 'button', class: 'btn', id: 'fav-toggle', 'aria-pressed': String(isFav), onclick: toggleFav }, isFav ? '★ Remove from favourites' : '☆ Save as a favourite') : null,
     d.isNew ? null : el('button', { type: 'button', class: 'btn', id: 'eat-again', onclick: () => logAgain(d) }, 'I ate this again'),
     d.isNew ? null : el('button', { type: 'button', class: 'btn danger', onclick: deleteDraft }, 'Delete this meal'),
+    d.scan ? el('p', { class: 'muted scan-details', id: 'scan-details' }, `Scan: ${d.scan}`) : null,
   ].flat().filter(Boolean));
 }
 
@@ -834,7 +864,30 @@ function renderSettings() {
   renderHealth();
   if (!state.keys.gemini) $('#gemini-guide').open = true;
   if (state.keys.deepseek) $('#deepseek-section').open = true;
-  $('#chain').replaceChildren(...CHAIN.map((s) => el('li', {}, `${PROVIDER_LABELS[s.provider]} · ${s.model}${keyNote(s.provider)}`)));
+  renderChain();
+}
+
+// Provider order: tried top to bottom. Up and down buttons move a step.
+function renderChain() {
+  const list = chain();
+  const move = (i, by) => {
+    const ids = list.map(stepId);
+    [ids[i], ids[i + by]] = [ids[i + by], ids[i]];
+    saveOrder(ids);
+    renderChain();
+    // Keep focus on the moved step. At the top or bottom its other button takes it.
+    const moved = ids[i + by];
+    ($(`#chain [data-move="${by}"][data-step="${moved}"]:not([disabled])`) || $(`#chain [data-step="${moved}"]:not([disabled])`))?.focus();
+  };
+  $('#chain').replaceChildren(...list.map((s, i) => {
+    const name = `${PROVIDER_LABELS[s.provider]} · ${s.model}`;
+    return el('li', { class: 'chain-step' },
+      el('span', {}, `${name}${keyNote(s.provider)}`),
+      el('span', { class: 'chain-btns' },
+        el('button', { type: 'button', class: 'btn', 'data-move': '-1', 'data-step': stepId(s), 'aria-label': `Move ${name} up`, disabled: i === 0, onclick: () => move(i, -1) }, '↑'),
+        el('button', { type: 'button', class: 'btn', 'data-move': '1', 'data-step': stepId(s), 'aria-label': `Move ${name} down`, disabled: i === list.length - 1, onclick: () => move(i, 1) }, '↓')));
+  }));
+  $('#reset-order').hidden = !state.order.length;
 }
 
 function keyNote(p) {
@@ -1029,6 +1082,7 @@ async function boot() {
   const fromLink = consumeSetupLink();
   state.keys = loadKeys();
   state.targets = loadTargets();
+  state.order = loadOrder();
   state.entries = await db.allEntries();
   state.favs = loadFavs();
 
@@ -1048,6 +1102,7 @@ async function boot() {
   });
   $('#test-keys').addEventListener('click', onTestKeys);
   $('#make-link').addEventListener('click', onMakeLink);
+  $('#reset-order').addEventListener('click', () => { saveOrder([]); renderChain(); toast('Provider order reset.'); });
   $('#own-key').addEventListener('click', openOwnKeySetup);
   $('#save-targets').addEventListener('click', onSaveTargets);
   $('#targets').addEventListener('input', syncSaveTargets);

@@ -8,12 +8,13 @@ Live at https://hariadityaa.github.io/countmakan/
 ## How it works
 - Static HTML and JS. No build step and no server.
 - The browser calls the model APIs directly. API keys stay in the phone's localStorage.
-- The model gets the original photo bytes, never a resized copy. HEIC and files over 12 MB are re-encoded as full-size JPEG.
+- The model gets a copy capped at 1536 px on the long side, as JPEG at quality 0.85. A smaller JPEG, PNG or WebP under 12 MB goes as is. Gemini 3 bills an image by media resolution, not pixels, so a bigger file only adds upload time. The full-size original sent before took 60 s or more on mobile data.
 - A diary copy, capped at 2048 px on the long side, is stored in IndexedDB with the entry, so the meal list works as a food diary. Tap a meal to see it full size.
 - Backups carry the 200 px thumbnail only. Full photos stay on the phone.
 - Each estimate is a list of items: name, grams, kcal, protein, carbs, fat, sugar, fibre, sodium (mg), confidence.
 - The user can edit every number before saving. Changing grams rescales the rest.
 - Each entry stores the provider, model, token usage and response time.
+- It also stores a scan line, shown at the bottom of the editor: each model tried, how it ended, its time, the photo size sent and thinking tokens. For example "gemini-3.8-flash timed out after 60.0 s → gemini-3.5-flash-lite 6.2 s · photo 310 KB". The same line goes to the console. Failure details show the time per attempt.
 - Settings has daily goals and backup ("Save a copy" / "Restore from a copy"). Backups include favourites.
 - "Not sure? Suggest for me" under Daily goals fills every goal from sex, age, height, weight, activity and what the user wants. It never saves on its own. The user can change any number, then taps "Save goals".
 - Keys, "Test keys", the setup link and the provider order sit in a folded "Setup (API keys)" section. It includes a free Gemini key guide and a folded optional DeepSeek field.
@@ -42,6 +43,8 @@ Defined in `js/config.js`. Logic never names a model.
 | 3 | DeepSeek | `deepseek-flash` |
 
 DeepSeek is paid, so it goes last. Its answer is capped at 1,500 tokens.
+
+This is the default order. Settings → Setup → Provider order moves a step up or down. The order is saved in localStorage (`countmakan.order`) as `provider:model` ids. A model added to `CHAIN` later joins after the saved ones. "Reset order" goes back to the default.
 
 - The app falls back on 429, 5xx, network errors, a 60 s timeout or unparseable output.
 - It stops on other 4xx errors, such as a bad key or bad request.

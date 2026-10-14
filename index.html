@@ -199,7 +199,9 @@
         <p class="muted">The setup link saves these keys on another phone. Treat it like a password.</p>
         <button type="button" class="btn" id="make-link">Copy setup link</button>
         <h3>Provider order</h3>
-        <ol class="muted" id="chain"></ol>
+        <p class="muted">Tried top to bottom. If one fails, the next one is used.</p>
+        <ol class="muted chain" id="chain"></ol>
+        <button type="button" class="btn" id="reset-order" hidden>Reset order</button>
       </details>
     </section>
   </main>

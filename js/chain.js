@@ -44,10 +44,22 @@ export async function callProvider(step, input, key, { fetchFn = fetch, timeoutM
   }
 }
 
+// A step's stable id, used to save the user's provider order.
+export const stepId = (step) => `${step.provider}:${step.model}`;
+
+// Reorders chain by saved ids. Steps not in ids keep their place after the saved ones.
+// Saved ids for steps no longer in the chain are dropped.
+export function applyOrder(chain, ids) {
+  if (!Array.isArray(ids) || !ids.length) return chain;
+  const rank = new Map(ids.map((id, i) => [id, i]));
+  const known = chain.filter((s) => rank.has(stepId(s))).sort((a, b) => rank.get(stepId(a)) - rank.get(stepId(b)));
+  return [...known, ...chain.filter((s) => !rank.has(stepId(s)))];
+}
+
 // Walks the chain. Returns { items, usage, provider, model, attempts }.
-// attempts lists every step tried or skipped, for display and debugging.
+// attempts lists every step tried or skipped, with ms per real call, for display and debugging.
 // onAttempt(step, index) fires before each real call, so the UI can say "trying another way".
-export async function estimate(input, keys, { chain = CHAIN, fetchFn = fetch, timeoutMs = TIMEOUT_MS, signal, onAttempt } = {}) {
+export async function estimate(input, keys, { chain = CHAIN, fetchFn = fetch, timeoutMs = TIMEOUT_MS, signal, onAttempt, now = () => performance.now() } = {}) {
   const kind = input.image ? 'image' : 'text';
   const attempts = [];
   for (const step of chain) {
@@ -60,13 +72,15 @@ export async function estimate(input, keys, { chain = CHAIN, fetchFn = fetch, ti
       attempts.push({ ...step, skipped: `no ${kind} support` });
       continue;
     }
+    const t0 = now();
+    const ms = () => Math.round(now() - t0);
     try {
       onAttempt?.(step, attempts.filter((a) => !a.skipped).length);
       const out = await callProvider(step, input, key, { fetchFn, timeoutMs, signal });
-      attempts.push({ ...step, ok: true });
+      attempts.push({ ...step, ok: true, ms: ms() });
       return { ...out, provider: step.provider, model: step.model, attempts };
     } catch (e) {
-      attempts.push({ ...step, error: e.message, status: e.status || 0, kind: e.kind || 'other' });
+      attempts.push({ ...step, error: e.message, status: e.status || 0, kind: e.kind || 'other', ms: ms() });
       if (!(e instanceof ProviderError) || !e.retryable) {
         const err = new ProviderError(`${step.model}: ${e.message}`, { status: e.status, kind: e.kind });
         err.attempts = attempts;

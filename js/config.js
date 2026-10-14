@@ -26,8 +26,13 @@ export const MAX_OUTPUT_TOKENS = 1500;
 
 export const THUMB_MAX_PX = 200;
 
-// Diary copy stored with each meal. The model always gets the original.
+// Diary copy stored with each meal.
 export const KEEP_MAX_PX = 2048;
+
+// Copy sent to the model. Gemini 3 bills an image by media resolution (about 1,100 tokens
+// at most), not pixels, so a bigger file adds upload time and no detail.
+export const MODEL_MAX_PX = 1536;
+export const MODEL_JPEG_QUALITY = 0.85;
 
 // sugar and sodium are limits. fibre is a minimum. sodium is milligrams.
 export const DEFAULT_TARGETS = { kcal: 1800, protein: 60, carbs: 225, fat: 60, sugar: 50, fibre: 25, sodium: 2000 };

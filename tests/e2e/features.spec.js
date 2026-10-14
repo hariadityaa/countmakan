@@ -177,3 +177,87 @@ test('suggest fills the goals without saving, and the user can override before s
   const saved = JSON.parse(await page.evaluate(() => localStorage.getItem('countmakan.targets')));
   expect(saved).toMatchObject({ kcal: 1550, protein: 58, carbs: 202, fat: 49 });
 });
+
+// Draws a w×h JPEG in the page, so a phone-sized photo needs no fixture file.
+async function bigPhoto(page, w, h) {
+  const b64 = await page.evaluate(([w, h]) => {
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    const g = c.getContext('2d');
+    for (let i = 0; i < 400; i++) {
+      g.fillStyle = `hsl(${i * 37 % 360} 70% 50%)`;
+      g.fillRect((i * 97) % w, (i * 53) % h, w / 8, h / 8);
+    }
+    return c.toDataURL('image/jpeg', 0.95).split(',')[1];
+  }, [w, h]);
+  return { name: 'big.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(b64, 'base64') };
+}
+
+const imageSize = (page, b64) => page.evaluate(async (d) => {
+  const bmp = await createImageBitmap(await (await fetch(`data:image/jpeg;base64,${d}`)).blob());
+  return [bmp.width, bmp.height];
+}, b64);
+
+test('a large photo goes to the model at 1536 px and the diary keeps 2048 px', async ({ page }) => {
+  let sent = '';
+  await page.route(/generativelanguage\.googleapis\.com/, async (route) => {
+    sent = JSON.parse(route.request().postData()).contents[0].parts[1].inline_data.data;
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify(geminiBody(NASI)) });
+  });
+  await open(page);
+  await page.setInputFiles('#upload', await bigPhoto(page, 4000, 3000));
+  await page.getByRole('button', { name: 'Count calories' }).click();
+  await expect(page.locator('#editor-total')).toBeVisible();
+  expect(await imageSize(page, sent)).toEqual([1536, 1152]);
+  await expect(page.locator('#scan-details')).toContainText(/photo \d+ KB/);
+  await page.getByRole('button', { name: 'Save meal' }).click();
+  const kept = await page.evaluate(async () => {
+    const db = await new Promise((r) => { const q = indexedDB.open('countmakan'); q.onsuccess = () => r(q.result); });
+    const [e] = await new Promise((r) => { const q = db.transaction('entries').objectStore('entries').getAll(); q.onsuccess = () => r(q.result); });
+    const bmp = await createImageBitmap(e.photo);
+    return [bmp.width, bmp.height];
+  });
+  expect(kept).toEqual([2048, 1536]);
+});
+
+test('scan details show each step and its time after a fallback, and are saved', async ({ page }) => {
+  await mockModels(page, { 'gemini-3.8-flash': { status: 503, body: { error: { message: 'busy' } } }, 'gemini-3.5-flash-lite': OK });
+  await open(page);
+  await photoEstimate(page);
+  await expect(page.locator('#scan-details')).toHaveText(/^Scan: gemini-3\.8-flash failed \(503\) after \d+\.\d s → gemini-3\.5-flash-lite \d+\.\d s · photo \d+ KB$/);
+  await page.getByRole('button', { name: 'Save meal' }).click();
+  await page.locator('button.entry').first().click();
+  await expect(page.locator('#scan-details')).toContainText('gemini-3.5-flash-lite');
+});
+
+test('provider order can be changed in Settings, is used for the next scan and can be reset', async ({ page }) => {
+  const calls = await mockModels(page, { 'gemini-3.5-flash-lite': OK });
+  await open(page);
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.locator('#setup summary').first().click();
+  const steps = page.locator('#chain li');
+  await expect(steps).toHaveText([/gemini-3\.8-flash/, /gemini-3\.5-flash-lite/, /deepseek-flash/]);
+  await expect(page.getByRole('button', { name: 'Move Gemini · gemini-3.8-flash up' })).toBeDisabled();
+  await expect(page.locator('#reset-order')).toBeHidden();
+
+  await page.getByRole('button', { name: 'Move Gemini · gemini-3.5-flash-lite up' }).click();
+  await expect(steps).toHaveText([/gemini-3\.5-flash-lite/, /gemini-3\.8-flash/, /deepseek-flash/]);
+  await expect(page.getByRole('button', { name: 'Move Gemini · gemini-3.5-flash-lite down' })).toBeFocused();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('countmakan.order'))))
+    .toEqual(['gemini:gemini-3.5-flash-lite', 'gemini:gemini-3.8-flash', 'deepseek:deepseek-flash']);
+
+  await page.reload();
+  await page.waitForSelector('body[data-ready]', { state: 'attached' });
+  await page.getByRole('button', { name: 'Today' }).click();
+  await photoEstimate(page);
+  await expect(page.locator('#editor-total')).toBeVisible();
+  expect(calls).toEqual(['gemini-3.5-flash-lite']);
+
+  await page.getByRole('button', { name: "Don't save" }).click();
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.locator('#setup summary').first().click();
+  await page.locator('#reset-order').click();
+  await expect(steps).toHaveText([/gemini-3\.8-flash/, /gemini-3\.5-flash-lite/, /deepseek-flash/]);
+  expect(await page.evaluate(() => localStorage.getItem('countmakan.order'))).toBeNull();
+});
