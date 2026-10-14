@@ -26,6 +26,9 @@ export const MAX_OUTPUT_TOKENS = 1500;
 
 export const THUMB_MAX_PX = 200;
 
+// Diary copy stored with each meal. The model always gets the original.
+export const KEEP_MAX_PX = 2048;
+
 // sugar and sodium are limits. fibre is a minimum. sodium is milligrams.
 export const DEFAULT_TARGETS = { kcal: 1800, protein: 60, carbs: 225, fat: 60, sugar: 50, fibre: 25, sodium: 2000 };
 

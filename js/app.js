@@ -1,4 +1,4 @@
-import { CHAIN, DEFAULT_TARGETS, THUMB_MAX_PX, PROVIDER_LABELS, OPTIONAL_PROVIDERS } from './config.js';
+import { CHAIN, DEFAULT_TARGETS, THUMB_MAX_PX, KEEP_MAX_PX, PROVIDER_LABELS, OPTIONAL_PROVIDERS } from './config.js';
 import { estimate, testKey } from './chain.js';
 import { totals, scaleItem, scaleBy, normalizeItem, mealTitle } from './schema.js';
 import { loadFavs, saveFavs, favFromEntry, favRefs, mergeFavs, favKcal } from './favs.js';
@@ -27,7 +27,7 @@ const state = {
   keys: {},
   targets: { ...DEFAULT_TARGETS },
   entries: [],
-  photo: null, // { mime, base64, blob, thumb }
+  photo: null, // { mime, base64, keep, thumb }
   photoUrl: '', // object URL for the open entry's full photo
   draft: null, // entry being edited
   favs: [],
@@ -346,7 +346,7 @@ async function onPhoto(ev) {
   ev.target.value = '';
   if (!file) return;
   try {
-    state.photo = await prepareImage(file, THUMB_MAX_PX);
+    state.photo = await prepareImage(file, THUMB_MAX_PX, KEEP_MAX_PX);
   } catch {
     showStep(state.photo ? 'compose' : 'add');
     toast(MSG.photo);
@@ -461,7 +461,7 @@ async function runEstimate() {
       source: photo ? 'photo' : 'text',
       text,
       thumb: state.photo?.thumb || '',
-      photo: state.photo?.blob || null,
+      photo: state.photo?.keep || null,
       isNew: true,
     });
   } catch (e) {
