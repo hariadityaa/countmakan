@@ -1,6 +1,6 @@
 // Sends saved meals to the Google Health app, one nutrition log per meal.
 // Each synced entry carries gh: { state: 'pending' | 'done' | 'failed', name, tried }.
-// Entries without gh were saved before sync was on and are never sent.
+// Entries without gh were saved while sync was off. Only "Send past meals" sends them.
 // Browser APIs are touched only inside functions, so node tests can import this.
 import { GOOGLE_CLIENT_ID, HEALTH_SCOPE, HEALTH_API } from './config.js';
 import { totals, mealTitle } from './schema.js';
@@ -8,6 +8,7 @@ import { totals, mealTitle } from './schema.js';
 const ON_KEY = 'countmakan.health';
 const TOKEN_KEY = 'countmakan.healthToken';
 const DELETES_KEY = 'countmakan.healthDeletes';
+const PAUSED_KEY = 'countmakan.healthPaused';
 
 // A deleted meal waits this long before its remote delete, so Undo can cancel it.
 export const DELETE_DELAY_MS = 9000;
@@ -54,7 +55,22 @@ function set(key, v) {
   } catch { /* storage blocked */ }
 }
 
-export const isOn = () => get(ON_KEY) === true;
+// Connected keeps the Google consent. On also means sending: connected and not paused.
+export const isConnected = () => get(ON_KEY) === true;
+export const isPaused = () => isConnected() && get(PAUSED_KEY) === true;
+export const isOn = () => isConnected() && !isPaused();
+export const setPaused = (v) => set(PAUSED_KEY, v ? true : null);
+
+// Edits and deletes queued for meals already sent. They go out when sync is on.
+export const waitingCount = (entries) => entries.filter((e) => e.gh?.state === 'pending').length + queuedDeletes().length;
+
+// Meals never sent, or rejected, saved in the last `days` local days. Null days means all.
+export function unsent(entries, days, now = Date.now()) {
+  const from = new Date(now);
+  from.setHours(0, 0, 0, 0);
+  if (days) from.setDate(from.getDate() - days + 1);
+  return entries.filter((e) => (!e.gh || e.gh.state === 'failed') && (!days || Date.parse(e.ts) >= from.getTime()));
+}
 
 export function validToken(now = Date.now()) {
   const t = get(TOKEN_KEY);
@@ -120,6 +136,7 @@ export function disconnect() {
   const token = validToken();
   if (token) window.google?.accounts?.oauth2?.revoke(token, () => {});
   set(ON_KEY, null);
+  set(PAUSED_KEY, null);
   set(TOKEN_KEY, null);
   set(DELETES_KEY, null);
 }
@@ -172,6 +189,7 @@ export const deleteLogs = (fetchImpl, token, names) => call(fetchImpl, token, 'P
 
 // ---------- Sync ----------
 // save(entry) writes an entry back and returns false if it was deleted meanwhile.
+// onProgress(waiting) runs after each meal, so a long send can show what is left.
 // Returns { waiting, needsSignIn, error }.
 let running = null;
 export function sync(deps) {
@@ -179,10 +197,10 @@ export function sync(deps) {
   return running;
 }
 
-async function runSync({ entries, save, fetchImpl = fetch, now = Date.now() }) {
+async function runSync({ entries, save, onProgress = () => {}, fetchImpl = fetch, now = Date.now() }) {
   const pending = entries.filter((e) => e.gh?.state === 'pending');
   const ripe = queuedDeletes().filter((d) => now - d.at >= DELETE_DELAY_MS);
-  const waiting = () => entries.filter((e) => e.gh?.state === 'pending').length + queuedDeletes().length;
+  const waiting = () => waitingCount(entries);
   if (!isOn() || (!pending.length && !ripe.length)) return { waiting: isOn() ? waiting() : 0 };
   const token = validToken(now);
   if (!token) return { waiting: waiting(), needsSignIn: true };
@@ -207,12 +225,14 @@ async function runSync({ entries, save, fetchImpl = fetch, now = Date.now() }) {
           if (!permanent(err)) throw err;
           e.gh = { state: 'failed', error: err.message };
           await save(e);
+          onProgress(waiting());
           continue;
         }
       }
       if (!name) continue; // Accepted but not finished. findLog picks it up next time.
       e.gh = { state: 'done', name };
       if (!(await save(e))) queueDelete(name, { ripeNow: true }); // Deleted while sending.
+      onProgress(waiting());
     }
     return { waiting: waiting() };
   } catch (e) {

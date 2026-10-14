@@ -137,7 +137,17 @@
 
       <div class="card">
         <h2>Google Health</h2>
+        <label class="switch-row" id="health-on-row" hidden>
+          <span>Send new meals</span>
+          <input type="checkbox" role="switch" class="switch" id="health-on">
+        </label>
         <p class="muted" id="health-status"></p>
+        <div id="health-past" hidden>
+          <p class="portion-label" id="health-past-label">Send past meals</p>
+          <div class="range-btns" id="health-range" role="group" aria-labelledby="health-past-label"></div>
+          <p class="muted" id="health-past-text"></p>
+          <button type="button" class="btn" id="health-past-btn">Send past meals</button>
+        </div>
         <button type="button" class="btn primary" id="health-connect">Connect</button>
         <button type="button" class="btn" id="health-disconnect">Disconnect</button>
       </div>

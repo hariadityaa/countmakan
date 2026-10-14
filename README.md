@@ -82,7 +82,8 @@ Optional. Settings → Google Health → Connect. Each phone connects its owner'
 - Meal type is guessed from the hour: 04–11 breakfast, 11–15 lunch, 18–22 dinner, else snack. The app shows snack as "Other".
 - Custom logs can't be edited, so an edit deletes the old log and creates a new one.
 - A delete waits 9 s so Undo can cancel it, then removes the remote log.
-- Only meals saved while connected are sent. Older and imported meals are not.
+- The "Send new meals" switch turns sync off without disconnecting. While off, new meals stay local. Edits and deletes to meals already sent wait until it is back on.
+- Meals saved before connecting, or while sync was off, are not sent by themselves. "Send past meals" sends them for the last 7 days, 30 days or all. It also retries meals Google rejected. Meals already sent are skipped.
 - Tokens last 1 hour and a browser can't refresh them. Meals saved after expiry queue up. Today then shows "Send to Google Health".
 - Sync is one way. Deleting in Google Health does not touch Makan Meter.
 
@@ -124,4 +125,4 @@ Serve locally with any static server, e.g. `python3 -m http.server`.
 - No condition-specific goals, such as for diabetes. Those are left to doctors.
 - Favourites live in localStorage (`countmakan.favourites`), separate from meals, so deleting a meal keeps its favourite.
 - Eval (Nutrition5k plus weighed home meals) is deferred.
-- Google Health sync: one log per meal, meal type from the clock, new meals only. The Google Fit API was rejected: closed to new projects and sunset in 2026.
+- Google Health sync: one log per meal, meal type from the clock. Past meals go only when asked, so connecting never floods the app. The Google Fit API was rejected: closed to new projects and sunset in 2026.
