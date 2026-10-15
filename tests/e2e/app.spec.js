@@ -5,9 +5,9 @@ import { KEYS, NASI, geminiBody, deepseekBody, mockModels, seedKeys, open, photo
 const OK = { status: 200, body: geminiBody(NASI) };
 const busy = (status) => ({ status, body: { error: { message: 'The model is overloaded' } } });
 
-test('without keys the app asks for the setup link', async ({ page }) => {
+test('without keys the app asks for a Gemini key', async ({ page }) => {
   await open(page);
-  await expect(page.getByText('Ask Hari to send you the setup link.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Add your Gemini key' })).toBeVisible();
   await expect(page.locator('#hero')).toBeHidden();
   // Nothing to count yet, so no empty dashboard.
   await expect(page.locator('#summary')).toBeHidden();
@@ -33,9 +33,9 @@ test('blank state reads cleanly on every tab', async ({ page }) => {
   await expect(page.locator('main')).not.toContainText(/\b(null|undefined|NaN)\b/);
 });
 
-test('without keys, Use my own key opens Setup with the Gemini guide and DeepSeek folded', async ({ page }) => {
+test('without keys, Add my Gemini key opens Setup with the Gemini guide and DeepSeek folded', async ({ page }) => {
   await open(page);
-  await page.getByRole('button', { name: 'Use my own key' }).click();
+  await page.getByRole('button', { name: 'Add my Gemini key' }).click();
   await expect(page.getByLabel('Gemini API key (free)')).toBeVisible();
   await expect(page.getByRole('link', { name: 'aistudio.google.com/apikey' })).toBeVisible();
   await expect(page.getByText('Optional: DeepSeek key (paid)')).toBeVisible();
