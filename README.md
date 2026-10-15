@@ -61,7 +61,7 @@ This is the default order. Settings → Setup → Provider order moves a step up
 - Google Health still gets only kcal, protein, carbs and fat.
 
 ## Using your own free Gemini key
-For friends. The same steps are in Settings → "Setup (API keys)". On a phone with no keys, "Use my own key" on the Today tab opens them.
+For friends. The same steps are in Settings → "Setup (API keys)". On a phone with no keys, "Add my Gemini key" on the Today tab opens them.
 1. Open [aistudio.google.com/apikey](https://aistudio.google.com/apikey).
 2. Sign in with any Google account and accept the terms if asked.
 3. Tap "Create API key". Pick the default project if asked.
