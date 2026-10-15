@@ -3,7 +3,7 @@
 Calorie counter PWA. Take a photo, upload one or type a description. Get calories, protein, carbs and fat back. The repo is still named `countmakan`.
 Hari's parents use a setup link. Friends bring their own free Gemini key. DeepSeek is an optional paid backup.
 
-Live at https://hariadityaa.github.io/countmakan/
+Live at https://hurrymeow.github.io/countmakan/
 
 ## How it works
 - Static HTML and JS. No build step and no server.
@@ -72,7 +72,7 @@ No credit card is needed. Leave DeepSeek empty unless you have a paid account. T
 
 ## Setting up a phone
 1. On your own phone, open Settings → "Setup (API keys)", paste the keys, then tap "Test keys".
-2. Tap "Copy setup link" and send it privately. Parents only ever use this link. It looks like `https://hariadityaa.github.io/countmakan/#setup?gemini=…&deepseek=…`.
+2. Tap "Copy setup link" and send it privately. Parents only ever use this link. It looks like `https://hurrymeow.github.io/countmakan/#setup?gemini=…&deepseek=…`.
 3. Opening the link saves the keys and strips them from the address bar. The `#` fragment never reaches a server.
 4. Install from the browser menu: "Add to Home screen".
 
@@ -96,7 +96,7 @@ GCP setup (project `makan-meter`, done once):
 1. Enable the Google Health API.
 2. OAuth consent screen: External, publishing status Testing. Add each user under Test users.
 3. Data access: add `googlehealth.nutrition.writeonly`.
-4. Web client with JavaScript origin `https://hariadityaa.github.io`. Its ID is in `js/config.js`. It is not a secret.
+4. Web client with JavaScript origin `https://hurrymeow.github.io`. Its ID is in `js/config.js`. It is not a secret.
 
 New users must be added as test users first. Testing mode shows an "unverified app" screen; tap Continue.
 

@@ -12,7 +12,7 @@ export default defineConfig({
   retries: 0,
   reporter: [['list']],
   use: {
-    baseURL: process.env.LIVE_URL || 'https://hariadityaa.github.io/countmakan/',
+    baseURL: process.env.LIVE_URL || 'https://hurrymeow.github.io/countmakan/',
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 2,
     // No trace, video or HAR: they would record request headers, which carry the keys.

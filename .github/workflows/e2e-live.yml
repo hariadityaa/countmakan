@@ -37,7 +37,7 @@ jobs:
         run: |
           want="countmakan-${SHA::7}"
           for i in $(seq 1 40); do
-            got=$(curl -fsS "https://hariadityaa.github.io/countmakan/sw.js?t=$RANDOM" | grep -oP "CACHE = '\Kcountmakan-[a-z0-9]+" || true)
+            got=$(curl -fsS "https://hurrymeow.github.io/countmakan/sw.js?t=$RANDOM" | grep -oP "CACHE = '\Kcountmakan-[a-z0-9]+" || true)
             [ "$got" = "$want" ] && { echo "Live: $got"; exit 0; }
             echo "Live is $got, waiting for $want"; sleep 15
           done

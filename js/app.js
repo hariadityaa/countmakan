@@ -1047,7 +1047,7 @@ async function onImport(ev) {
 
 // ---------- Install ----------
 // Chrome's menu install says "already installed" for any page on an origin that has an
-// installed app (turisfasih on hariadityaa.github.io). The page prompt checks scope correctly.
+// installed app (turisfasih on hurrymeow.github.io). The page prompt checks scope correctly.
 let installEvent = null;
 const INSTALL_DECLINED = 'countmakan.installDeclined';
 const isStandalone = () => matchMedia('(display-mode: standalone)').matches;

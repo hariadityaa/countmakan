@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { MAX_OUTPUT_TOKENS } from '../../js/config.js';
 
 const OUT = process.env.LIVE_OUT || 'live-results';
-const UA = 'countmakan-e2e/1.0 (https://github.com/hariadityaa/countmakan)';
+const UA = 'countmakan-e2e/1.0 (https://github.com/hurrymeow/countmakan)';
 // Loads only the DeepSeek key, so the chain skips Gemini and every case runs on DeepSeek.
 const DEEPSEEK_ONLY = process.env.DEEPSEEK_ONLY === '1';
 const KEY_ENV = DEEPSEEK_ONLY ? ['DEEPSEEK_API_KEY'] : ['GEMINI_API_KEY', 'DEEPSEEK_API_KEY'];
