@@ -595,8 +595,14 @@ function drawEditor() {
     const id = (f) => `item-${i}-${f}`;
     return el('div', { class: 'item' },
       el('label', { for: id('name') }, 'Food'),
-      el('input', { id: id('name'), value: it.name, onchange: (ev) => { d.items[i] = { ...it, name: ev.target.value }; d.base[i] = { ...d.base[i], name: ev.target.value }; } }),
-      it.detail ? el('div', { class: 'item-detail' }, it.detail) : null,
+      el('input', { id: id('name'), value: it.name, onchange: (ev) => { d.items[i] = { ...d.items[i], name: ev.target.value }; d.base[i] = { ...d.base[i], name: ev.target.value }; } }),
+      el('details', { class: 'item-note' },
+        el('summary', {}, it.detail ? 'Note' : 'Add note'),
+        el('input', { id: id('detail'), value: it.detail || '', 'aria-label': 'Note', placeholder: 'e.g. fried, with chilli', onchange: (ev) => {
+          const detail = ev.target.value.trim();
+          d.items[i] = { ...d.items[i], detail: detail || undefined };
+          d.base[i] = { ...d.base[i], detail: detail || undefined };
+        } })),
       it.confidence < LOW_CONFIDENCE ? el('span', { class: 'badge' }, 'Please check this') : null,
       el('div', { class: 'item-cals' },
         field(id('grams'), 'Grams', it.grams, update('grams')),
