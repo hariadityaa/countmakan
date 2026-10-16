@@ -283,6 +283,8 @@ pre { white-space: pre-wrap; word-break: break-word; font: .875rem/1.5 var(--fon
   width: 40px; height: 40px; border-radius: var(--r-sm); object-fit: cover; flex: none;
   background: var(--surface-2); border: 1px solid var(--border); display: grid; place-items: center; color: var(--text-3);
 }
+.entry .ph { color: var(--text-2); }
+.entry .ph svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .entry .meta { flex: 1; min-width: 0; display: block; }
 .entry .meta > span { display: block; }
 .entry .meta > .name { font-size: 1.0625rem; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
