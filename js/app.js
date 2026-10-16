@@ -8,6 +8,7 @@ import { prepareImage } from './image.js';
 import { describeFailure, scanSummary, MSG } from './messages.js';
 import * as db from './db.js';
 import * as health from './health.js';
+import { foodIconSvg } from './food-icons.js';
 import { ringSvg, weekChartSvg, daySeries, macroSplit } from './charts.js';
 import { suggestTargets, goalHint, ACTIVITY, GOAL_CHOICES } from './suggest.js';
 
@@ -229,13 +230,19 @@ function renderSummary() {
 }
 
 // ---------- Meal lists ----------
+function foodIcon(items, text) {
+  const n = el('span', { class: 'ph', 'aria-hidden': 'true' });
+  n.innerHTML = foodIconSvg(items, text);
+  return n;
+}
+
 function entryRow(e) {
   const t = totals(e.items);
   const { title, more } = mealTitle(e.items, e.text);
   const time = new Date(e.ts).toLocaleTimeString('en', { hour: 'numeric', minute: '2-digit' });
   return el('li', {},
     el('button', { type: 'button', class: 'entry', 'aria-label': `${title}${more ? ` and ${more} more` : ''}, ${fmt(t.kcal)} calories, at ${time}. Tap to see all items.`, onclick: () => openEditor(structuredClone(e)) },
-      e.thumb ? el('img', { src: e.thumb, alt: '' }) : el('span', { class: 'ph', 'aria-hidden': 'true' }, '–'),
+      e.thumb ? el('img', { src: e.thumb, alt: '' }) : foodIcon(e.items, e.text),
       el('span', { class: 'meta' }, el('span', { class: 'name' }, title), el('span', { class: 'time' }, more ? `${time} · +${more} more` : time)),
       el('span', { class: 'cal' }, fmt(t.kcal), el('small', {}, ' kcal'))));
 }
@@ -322,7 +329,7 @@ function favRow(f) {
   const kcal = favKcal(f);
   return el('li', {},
     el('button', { type: 'button', class: 'entry', 'aria-label': `${f.name}, ${fmt(kcal)} calories. Tap to add it again.`, onclick: () => logAgain(f) },
-      f.thumb ? el('img', { src: f.thumb, alt: '' }) : el('span', { class: 'ph', 'aria-hidden': 'true' }, '★'),
+      f.thumb ? el('img', { src: f.thumb, alt: '' }) : foodIcon(f.items, f.name),
       el('span', { class: 'meta' }, el('span', { class: 'name' }, f.name), el('span', { class: 'time' }, 'Tap to add again')),
       el('span', { class: 'cal' }, fmt(kcal), el('small', {}, ' kcal'))));
 }
