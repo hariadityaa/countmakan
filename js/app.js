@@ -678,7 +678,13 @@ async function saveDraft() {
   renderToday();
   window.scrollTo({ top: 0, behavior: 'smooth' });
   toast(isNew ? 'Meal saved ✓' : 'Changes saved ✓');
-  syncHealth();
+  await syncHealth();
+  // Background sends can't open the sign-in popup, so ask for a tap.
+  if (showSyncCard()) {
+    toast(`${isNew ? 'Meal saved' : 'Changes saved'}. Sign in to send it to Google Health.`, {
+      action: 'Sign in', ms: 10000, onAction: onHealthSendCard,
+    });
+  }
 }
 
 async function deleteDraft() {
@@ -745,6 +751,7 @@ function renderHealth() {
     : on
       ? [state.healthBusy && waiting ? `Sending. ${changes(waiting)} left.` : 'On. New meals also go to the Google Health app.',
         !state.healthBusy && waiting ? `${changes(waiting)} waiting to send.` : '',
+        showSyncCard() ? 'Google sign-in expired.' : '',
         failed ? `${meals(failed)} could not be sent.` : '',
         error ? `Last try failed: ${error}` : '']
       : ['Off. New meals stay in this app only.',
@@ -752,6 +759,7 @@ function renderHealth() {
   $('#health-status').textContent = lines.filter(Boolean).join(' ');
   $('#health-on-row').hidden = !connected;
   $('#health-on').checked = on;
+  $('#health-signin').hidden = !showSyncCard() || state.healthBusy;
   $('#health-connect').hidden = connected;
   $('#health-disconnect').hidden = !connected;
   renderPastMeals(on);
@@ -1132,6 +1140,7 @@ async function boot() {
   $('#health-on').addEventListener('change', onHealthToggle);
   $('#health-past-btn').addEventListener('click', onSendPastMeals);
   $('#health-sync-btn').addEventListener('click', onHealthSendCard);
+  $('#health-signin').addEventListener('click', onHealthSendCard);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) syncHealth(); });
   renderInstall();
 
