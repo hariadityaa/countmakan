@@ -149,7 +149,10 @@ for (const width of [360, 412]) {
       await mockModels(page, { 'gemini-3.8-flash': { status: 200, body: geminiBody(NASI) } });
       await mockHealth(page);
       // Was connected, but this session has no sign-in yet: saved meals wait on Today.
-      await page.addInitScript(() => localStorage.setItem('countmakan.health', 'true'));
+      await page.addInitScript(() => {
+        localStorage.setItem('countmakan.health', 'true');
+        window.gisClosed = true; // The sign-in popup on Save is closed.
+      });
       await open(page);
       await page.setInputFiles('#upload', PLATE);
       await page.getByRole('button', { name: 'Count calories' }).click();

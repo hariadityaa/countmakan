@@ -659,6 +659,10 @@ function questionCard(ask) {
 }
 
 async function saveDraft() {
+  const d = state.draft;
+  const sends = health.isOn() && (d.isNew || state.entries.find((x) => x.id === d.id)?.gh);
+  // Ask for a fresh token now, while the Save tap still allows the popup.
+  const token = sends && !health.validToken() ? health.getToken().catch(() => null) : null;
   // Commit an edit that is still focused, so its change event runs first.
   document.activeElement?.blur?.();
   const { isNew, ...entry } = state.draft;
@@ -678,6 +682,7 @@ async function saveDraft() {
   renderToday();
   window.scrollTo({ top: 0, behavior: 'smooth' });
   toast(isNew ? 'Meal saved ✓' : 'Changes saved ✓');
+  await token;
   await syncHealth();
   // Background sends can't open the sign-in popup, so ask for a tap.
   if (showSyncCard()) {

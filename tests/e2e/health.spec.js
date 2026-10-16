@@ -68,6 +68,7 @@ test('expired sign-in shows a send card on Today, one tap sends', async ({ page 
       localStorage.setItem('countmakan.health', 'true');
       sessionStorage.setItem('seeded', '1');
     }
+    window.gisClosed = true; // The sign-in popup on Save is closed.
   });
   await open(page);
   await photoEstimate(page);
@@ -76,6 +77,7 @@ test('expired sign-in shows a send card on Today, one tap sends', async ({ page 
   await expect(page.locator('#health-sync-text')).toHaveText('1 meal is not in Google Health yet.');
   expect(posts(calls)).toHaveLength(0);
 
+  await page.evaluate(() => { window.gisClosed = false; });
   await page.getByRole('button', { name: 'Send to Google Health' }).click();
   await expect(page.locator('#toast')).toHaveText('Sent to Google Health ✓');
   await expect(page.locator('#health-sync')).toBeHidden();
@@ -90,6 +92,7 @@ test('expired sign-in: saving offers Send, Settings offers Send now', async ({ p
       localStorage.setItem('countmakan.health', 'true');
       sessionStorage.setItem('seeded', '1');
     }
+    window.gisClosed = true; // The sign-in popup on Save is closed.
   });
   await open(page);
   await photoEstimate(page);
@@ -104,10 +107,22 @@ test('expired sign-in: saving offers Send, Settings offers Send now', async ({ p
     await page.evaluate(() => { document.querySelector('#toast').hidden = true; document.querySelector('#health-signin').scrollIntoView({ block: 'center' }); });
     await page.screenshot({ path: `${process.env.SHOT_DIR}/settings.png` });
   }
+  await page.evaluate(() => { window.gisClosed = false; });
   await page.getByRole('button', { name: 'Send now' }).click();
   await expect(page.locator('#toast')).toHaveText('Sent to Google Health ✓');
   await expect(page.locator('#health-signin')).toBeHidden();
   expect(posts(calls)).toHaveLength(1);
+});
+
+test('expired sign-in: Save gets a fresh token and sends right away', async ({ page }) => {
+  await mockModels(page, { 'gemini-3.8-flash': { status: 200, body: geminiBody(NASI) } });
+  const calls = await mockHealth(page);
+  await page.addInitScript(() => localStorage.setItem('countmakan.health', 'true'));
+  await open(page);
+  await photoEstimate(page);
+  await page.getByRole('button', { name: 'Save meal' }).click();
+  await expect.poll(() => posts(calls).length).toBe(1);
+  await expect(page.locator('#health-sync')).toBeHidden();
 });
 
 test('off by default: saving a meal calls nothing', async ({ page }) => {
