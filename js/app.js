@@ -681,8 +681,8 @@ async function saveDraft() {
   await syncHealth();
   // Background sends can't open the sign-in popup, so ask for a tap.
   if (showSyncCard()) {
-    toast(`${isNew ? 'Meal saved' : 'Changes saved'}. Sign in to send it to Google Health.`, {
-      action: 'Sign in', ms: 10000, onAction: onHealthSendCard,
+    toast(`${isNew ? 'Meal saved' : 'Changes saved'}. Not in Google Health yet.`, {
+      action: 'Send', ms: 10000, onAction: onHealthSendCard,
     });
   }
 }
@@ -751,7 +751,6 @@ function renderHealth() {
     : on
       ? [state.healthBusy && waiting ? `Sending. ${changes(waiting)} left.` : 'On. New meals also go to the Google Health app.',
         !state.healthBusy && waiting ? `${changes(waiting)} waiting to send.` : '',
-        showSyncCard() ? 'Google sign-in expired.' : '',
         failed ? `${meals(failed)} could not be sent.` : '',
         error ? `Last try failed: ${error}` : '']
       : ['Off. New meals stay in this app only.',

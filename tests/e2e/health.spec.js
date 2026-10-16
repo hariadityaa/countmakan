@@ -82,7 +82,7 @@ test('expired sign-in shows a send card on Today, one tap sends', async ({ page 
   expect(posts(calls)).toHaveLength(1);
 });
 
-test('expired sign-in: saving prompts to sign in, Settings offers a send button', async ({ page }) => {
+test('expired sign-in: saving offers Send, Settings offers Send now', async ({ page }) => {
   await mockModels(page, { 'gemini-3.8-flash': { status: 200, body: geminiBody(NASI) } });
   const calls = await mockHealth(page);
   await page.addInitScript(() => {
@@ -94,17 +94,17 @@ test('expired sign-in: saving prompts to sign in, Settings offers a send button'
   await open(page);
   await photoEstimate(page);
   await page.getByRole('button', { name: 'Save meal' }).click();
-  await expect(page.locator('#toast-text')).toHaveText('Meal saved. Sign in to send it to Google Health.');
+  await expect(page.locator('#toast-text')).toHaveText('Meal saved. Not in Google Health yet.');
   if (process.env.SHOT_DIR) await page.screenshot({ path: `${process.env.SHOT_DIR}/toast.png` });
 
   await page.getByRole('button', { name: 'Settings' }).click();
-  await expect(page.locator('#health-status')).toContainText('1 meal is waiting to send. Google sign-in expired.');
+  await expect(page.locator('#health-status')).toContainText('1 meal is waiting to send.');
   await page.locator('#health-signin').scrollIntoViewIfNeeded();
   if (process.env.SHOT_DIR) {
     await page.evaluate(() => { document.querySelector('#toast').hidden = true; document.querySelector('#health-signin').scrollIntoView({ block: 'center' }); });
     await page.screenshot({ path: `${process.env.SHOT_DIR}/settings.png` });
   }
-  await page.getByRole('button', { name: 'Sign in and send' }).click();
+  await page.getByRole('button', { name: 'Send now' }).click();
   await expect(page.locator('#toast')).toHaveText('Sent to Google Health ✓');
   await expect(page.locator('#health-signin')).toBeHidden();
   expect(posts(calls)).toHaveLength(1);
