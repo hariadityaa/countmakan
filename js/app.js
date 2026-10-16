@@ -1077,6 +1077,18 @@ function onDeclineInstall() {
   renderInstall();
 }
 
+// ---------- Share ----------
+// Installed apps hide the address bar, so this is the only way to find the link.
+async function onShareApp() {
+  const url = new URL('./', location.href).href;
+  if (navigator.share) {
+    try { await navigator.share({ title: document.title, url }); return; }
+    catch (err) { if (err && err.name === 'AbortError') return; }
+  }
+  try { await navigator.clipboard.writeText(url); toast('Link copied.'); }
+  catch { toast(url); }
+}
+
 // ---------- Boot ----------
 async function boot() {
   const fromLink = consumeSetupLink();
@@ -1114,6 +1126,7 @@ async function boot() {
   $('#import').addEventListener('change', onImport);
   $('#install-yes').addEventListener('click', onInstall);
   $('#install-no').addEventListener('click', onDeclineInstall);
+  $('#share-app').addEventListener('click', onShareApp);
   $('#health-connect').addEventListener('click', () => onHealthSignIn('Connected to Google Health ✓'));
   $('#health-disconnect').addEventListener('click', onHealthDisconnect);
   $('#health-on').addEventListener('change', onHealthToggle);
