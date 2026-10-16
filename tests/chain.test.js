@@ -97,9 +97,75 @@ test('times out a hung provider and moves on', async () => {
     init.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
   });
   const f = async (url, init) => (url.includes('g1') ? hang(url, init) : res(200, deepseekOk));
-  const out = await estimate({ text: 'egg' }, KEYS, { chain: CHAIN, fetchFn: f, timeoutMs: 20 });
+  const out = await estimate({ text: 'egg' }, KEYS, { chain: CHAIN, fetchFn: f, timeoutMs: 20, cooldown: new Map() });
   assert.equal(out.model, 'd1');
   assert.equal(out.attempts[0].error, 'Timed out');
+});
+
+// Hangs until aborted, or answers after ms when given.
+const hanging = (okAfterMs) => (url, init) => new Promise((resolve, reject) => {
+  if (okAfterMs != null) setTimeout(() => resolve(res(200, geminiOk)), okAfterMs);
+  init.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+});
+
+test('a step with a fallback left uses its short cap; the last step gets the full budget', async () => {
+  const capped = [{ ...CHAIN[0], timeoutMs: 20 }, CHAIN[1]];
+  const f = async (url, init) => (url.includes('g1') ? hanging()(url, init) : res(200, deepseekOk));
+  const out = await estimate({ text: 'egg' }, KEYS, { chain: capped, fetchFn: f, timeoutMs: 5000, cooldown: new Map() });
+  assert.equal(out.model, 'd1');
+  assert.ok(out.attempts[0].ms < 1000);
+
+  // Without a DeepSeek key, g1 is last, so the 20 ms cap does not apply.
+  const solo = await estimate({ text: 'egg' }, { gemini: 'gk' }, { chain: capped, fetchFn: hanging(60), timeoutMs: 5000, cooldown: new Map() });
+  assert.equal(solo.model, 'g1');
+});
+
+test('a model that timed out is skipped on the next scan while another can run', async () => {
+  const cooldown = new Map();
+  let t = 0;
+  const clock = () => t;
+  const f = async (url, init) => (url.includes('g1') ? hanging()(url, init) : res(200, deepseekOk));
+  await estimate({ text: 'egg' }, KEYS, { chain: CHAIN, fetchFn: f, timeoutMs: 20, cooldown, clock });
+
+  const f2 = fakeFetch({ d1: res(200, deepseekOk) });
+  const out = await estimate({ text: 'egg' }, KEYS, { chain: CHAIN, fetchFn: f2, cooldown, clock });
+  assert.deepEqual(f2.calls, ['d1']);
+  assert.equal(out.attempts[0].skipped, 'timed out recently');
+
+  // Only g1 usable: tried anyway.
+  const f3 = fakeFetch({ g1: res(200, geminiOk) });
+  assert.equal((await estimate({ text: 'egg' }, { gemini: 'gk' }, { chain: CHAIN.slice(0, 2), fetchFn: f3, cooldown, clock })).model, 'g1');
+
+  // After ten minutes it is back, and a success clears it.
+  t = 10 * 60 * 1000;
+  const f4 = fakeFetch({ g1: res(200, geminiOk) });
+  await estimate({ text: 'egg' }, KEYS, { chain: CHAIN, fetchFn: f4, cooldown, clock });
+  assert.deepEqual(f4.calls, ['g1']);
+  assert.equal(cooldown.size, 0);
+});
+
+test('retries a 503 once after everything failed', async () => {
+  let n = 0;
+  const f = async (url) => {
+    if (url.includes('g1')) return ++n === 1 ? res(503, {}) : res(200, geminiOk);
+    return res(500, {});
+  };
+  const out = await estimate({ text: 'egg' }, KEYS, { chain: CHAIN, fetchFn: f, retryDelayMs: 0 });
+  assert.equal(out.model, 'g1');
+  assert.deepEqual(out.attempts.map((a) => a.model), ['g1', 'd1', 'g2', 'g1']);
+
+  const f2 = fakeFetch({ g1: res(503, {}), d1: res(500, {}), g2: res(500, {}) });
+  await assert.rejects(estimate({ text: 'egg' }, KEYS, { chain: CHAIN, fetchFn: f2, retryDelayMs: 0 }), /All providers failed/);
+  assert.deepEqual(f2.calls, ['g1', 'd1', 'g2', 'g1']);
+});
+
+test('cancel during the 503 retry wait stops the scan', async () => {
+  const ctrl = new AbortController();
+  const f = fakeFetch({ g1: res(503, {}), d1: res(500, {}), g2: res(500, {}) });
+  const p = estimate({ text: 'egg' }, KEYS, { chain: CHAIN, fetchFn: f, signal: ctrl.signal, retryDelayMs: 5000 });
+  setTimeout(() => ctrl.abort(), 10);
+  await assert.rejects(p, (e) => e.kind === 'cancel' && e.attempts.length === 3);
+  assert.equal(f.calls.length, 3);
 });
 
 test('testKey reports success and failure', async () => {

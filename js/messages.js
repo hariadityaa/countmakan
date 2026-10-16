@@ -40,7 +40,8 @@ const secs = (ms) => `${(ms / 1000).toFixed(1)} s`;
 // One line on how a scan went, for the editor and the console.
 // e.g. "gemini-3.8-flash timed out after 60.0 s → gemini-3.5-flash-lite 6.2 s · photo 340 KB · 1,200 thinking tokens"
 export function scanSummary(attempts = [], { photoBytes, usage } = {}) {
-  const steps = attempts.filter((a) => !a.skipped).map((a) => {
+  const steps = attempts.filter((a) => !a.skipped || a.skipped === 'timed out recently').map((a) => {
+    if (a.skipped) return `${a.model} skipped (timed out recently)`;
     const t = a.ms != null ? secs(a.ms) : '';
     if (a.ok) return `${a.model} ${t}`.trim();
     const why = a.kind === 'timeout' ? 'timed out' : a.status ? `failed (${a.status})` : `failed (${a.error || a.kind})`;
