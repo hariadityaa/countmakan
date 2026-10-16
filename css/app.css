@@ -291,7 +291,10 @@ pre { white-space: pre-wrap; word-break: break-word; font: .875rem/1.5 var(--fon
 .entry .meta .time { font-size: .875rem; color: var(--text-2); margin-top: 2px; }
 .entry .cal { font-weight: 600; white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
 .entry .cal small { font-weight: 400; color: var(--text-2); font-size: .875rem; }
-.item-detail { color: var(--text-2); font-size: .875rem; margin-top: var(--s-1); }
+.item-note summary { min-height: var(--control-h); font-size: .875rem; font-weight: 400; color: var(--text-2); }
+.item-note summary::after { content: "›"; margin-left: var(--s-1); transition: transform .15s; }
+.item-note[open] summary::after { transform: rotate(90deg); }
+.item-note input { margin-bottom: var(--s-1); }
 .entry::after { content: "›"; color: var(--text-3); font-size: 1.5rem; line-height: 1; }
 .empty { color: var(--text-2); padding: var(--s-2) 0; }
 .entries > .empty { padding: 0; }

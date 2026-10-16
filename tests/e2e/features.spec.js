@@ -261,3 +261,23 @@ test('provider order can be changed in Settings, is used for the next scan and c
   await expect(steps).toHaveText([/gemini-3\.8-flash/, /gemini-3\.5-flash-lite/, /deepseek-flash/]);
   expect(await page.evaluate(() => localStorage.getItem('countmakan.order'))).toBeNull();
 });
+
+test('item note is collapsed, editable and saved', async ({ page }) => {
+  const items = [{ ...NASI[0], detail: 'plain, steamed' }, NASI[1]];
+  await mockModels(page, { 'gemini-3.8-flash': { status: 200, body: geminiBody(items) } });
+  await open(page);
+  await photoEstimate(page);
+
+  const note = page.locator('#item-0-detail');
+  await expect(note).toBeHidden();
+  await expect(page.locator('.item-note summary')).toHaveText(['Note', 'Add note']);
+  await page.locator('.item-note summary').first().click();
+  await expect(note).toHaveValue('plain, steamed');
+  await note.fill('with egg');
+  await note.blur();
+  await page.getByRole('button', { name: 'Save meal' }).click();
+
+  await page.locator('#today-list .entry').click();
+  await page.locator('.item-note summary').first().click();
+  await expect(page.locator('#item-0-detail')).toHaveValue('with egg');
+});
