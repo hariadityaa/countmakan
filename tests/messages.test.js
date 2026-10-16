@@ -56,3 +56,12 @@ test('failure details include time per attempt', () => {
   const d = describeFailure(fail({ model: 'flash', kind: 'timeout', error: 'Timed out', ms: 60000 })).details;
   assert.equal(d, 'flash: Timed out (60.0 s)');
 });
+
+test('scanSummary names a model skipped for timing out recently', () => {
+  const attempts = [
+    { model: 'flash', skipped: 'no key' },
+    { model: 'lite', skipped: 'timed out recently' },
+    { model: 'ds', ok: true, ms: 2700 },
+  ];
+  assert.equal(scanSummary(attempts), 'lite skipped (timed out recently) → ds 2.7 s');
+});
