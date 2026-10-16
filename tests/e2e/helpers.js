@@ -52,10 +52,13 @@ export async function photoEstimate(page) {
 }
 
 // Stands in for Google's sign-in script. Each requestAccessToken returns a fresh token.
+// Set window.gisClosed to act as if the user closed the popup.
 const FAKE_GIS = `
   let n = 0;
   window.google = { accounts: { oauth2: {
-    initTokenClient: (cfg) => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok' + (++n), expires_in: 3599, scope: cfg.scope })) }),
+    initTokenClient: (cfg) => ({ requestAccessToken: () => setTimeout(() => (window.gisClosed
+      ? cfg.error_callback({ type: 'popup_closed' })
+      : cfg.callback({ access_token: 'tok' + (++n), expires_in: 3599, scope: cfg.scope }))) }),
     hasGrantedAllScopes: () => true,
     revoke: (_t, cb) => cb && cb(),
   } } };`;

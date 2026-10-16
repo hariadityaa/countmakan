@@ -659,6 +659,10 @@ function questionCard(ask) {
 }
 
 async function saveDraft() {
+  const d = state.draft;
+  const sends = health.isOn() && (d.isNew || state.entries.find((x) => x.id === d.id)?.gh);
+  // Ask for a fresh token now, while the Save tap still allows the popup.
+  const token = sends && !health.validToken() ? health.getToken().catch(() => null) : null;
   // Commit an edit that is still focused, so its change event runs first.
   document.activeElement?.blur?.();
   const { isNew, ...entry } = state.draft;
@@ -678,7 +682,14 @@ async function saveDraft() {
   renderToday();
   window.scrollTo({ top: 0, behavior: 'smooth' });
   toast(isNew ? 'Meal saved ✓' : 'Changes saved ✓');
-  syncHealth();
+  await token;
+  await syncHealth();
+  // Background sends can't open the sign-in popup, so ask for a tap.
+  if (showSyncCard()) {
+    toast(`${isNew ? 'Meal saved' : 'Changes saved'}. Not in Google Health yet.`, {
+      action: 'Send', ms: 10000, onAction: onHealthSendCard,
+    });
+  }
 }
 
 async function deleteDraft() {
@@ -752,6 +763,7 @@ function renderHealth() {
   $('#health-status').textContent = lines.filter(Boolean).join(' ');
   $('#health-on-row').hidden = !connected;
   $('#health-on').checked = on;
+  $('#health-signin').hidden = !showSyncCard() || state.healthBusy;
   $('#health-connect').hidden = connected;
   $('#health-disconnect').hidden = !connected;
   renderPastMeals(on);
@@ -1132,6 +1144,7 @@ async function boot() {
   $('#health-on').addEventListener('change', onHealthToggle);
   $('#health-past-btn').addEventListener('click', onSendPastMeals);
   $('#health-sync-btn').addEventListener('click', onHealthSendCard);
+  $('#health-signin').addEventListener('click', onHealthSendCard);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) syncHealth(); });
   renderInstall();
 
