@@ -271,6 +271,13 @@ function limitBar(label, value, target, unit, isMin = false) {
     el('div', { class: 'bar', 'aria-hidden': 'true' }, el('i', { style: `width:${pct}%` })));
 }
 
+// On target gets a tick and green, so a planned bigger day still feels like a win.
+function statusPill(text, tone) {
+  const pill = el('div', { class: `hero-status${tone ? ` ${tone}` : ''}` }, text);
+  if (tone === 'good') pill.insertAdjacentHTML('afterbegin', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>');
+  return pill;
+}
+
 function renderSummary() {
   const today = localDay(new Date());
   const t = totals(state.entries.filter((e) => e.day === today).flatMap((e) => e.items));
@@ -286,11 +293,11 @@ function renderSummary() {
       el('div', { class: 'ring-unit' }, 'calories')));
   ring.insertAdjacentHTML('afterbegin', ringSvg(t.kcal, goal, macroSplit(t)));
   $('#summary').replaceChildren(...[
-    el('div', { class: 'muted' }, `Today, ${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}`),
+    el('div', { class: 'muted' }, new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })),
     el('div', { class: 'hero' }, ring,
       el('div', { class: 'hero-text' },
-        t.kcal > 0 ? el('div', { class: `hero-status${over ? ' over' : ''}` }, status) : null,
-        stat('Goal', fmt(goal)),
+        t.kcal > 0 ? statusPill(status, over ? 'over' : status === 'On target' ? 'good' : '') : null,
+        stat(status === 'On target' ? '±10% of goal' : 'Goal', fmt(goal)),
         avg?.days >= 3 ? stat(`${avg.days}-day avg`, fmt(avg.kcal)) : null)),
     el('div', { class: 'bars' }, MACRO_KEYS.map((m) => bar(m, t[m], state.targets[m]))),
     el('div', { class: 'bars' },
