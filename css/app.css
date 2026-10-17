@@ -340,6 +340,9 @@ pre { white-space: pre-wrap; word-break: break-word; font: .875rem/1.5 var(--fon
 /* A summary centres its text in a 40px tap row. Trim the card padding by that slack so the text sits 24px from the edge. */
 .card.setup { padding-top: var(--s-4); }
 .card.setup:not([open]) { padding-bottom: var(--s-4); }
+#goals summary > :first-child { white-space: nowrap; }
+.summary-meta { margin-left: auto; padding-left: var(--s-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: .875rem; font-weight: 400; color: var(--text-2); }
+#goals[open] .summary-meta { display: none; }
 .setup li { margin: var(--s-1) 0; }
 .setup li:last-child { margin-bottom: 0; }
 .guide { margin-top: var(--s-2); }
