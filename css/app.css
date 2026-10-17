@@ -150,6 +150,7 @@ textarea { padding: var(--s-2) var(--s-3); resize: vertical; }
 @media (max-width: 374px) {
   .hero { gap: var(--s-4); }
   .ring-wrap { width: 128px; height: 128px; }
+  .ring-wrap .big-num { font-size: 1.625rem; }
 }
 
 /* Macro colours */
