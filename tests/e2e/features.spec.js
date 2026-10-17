@@ -96,9 +96,9 @@ test('favourites: save one, log it again with no call, and send its portions as 
   await open(page);
   await expect(page.locator('#favs')).toBeHidden();
   await photoEstimate(page);
-  await page.getByRole('button', { name: '☆ Save as a favourite' }).click();
+  await page.getByRole('button', { name: 'Save as a favourite' }).click();
   await expect(page.locator('#toast')).toHaveText(/Saved as a favourite/);
-  await expect(page.getByRole('button', { name: '★ Remove from favourites' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Remove from favourites' })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: 'Save meal' }).click();
 
   await expect(page.locator('#favs')).toBeVisible();
@@ -122,7 +122,7 @@ test('favourites: save one, log it again with no call, and send its portions as 
 
   // Removing it from the favourite's own editor hides the card.
   await page.locator('#fav-list .entry').click();
-  await page.getByRole('button', { name: '★ Remove from favourites' }).click();
+  await page.getByRole('button', { name: 'Remove from favourites' }).click();
   await page.getByRole('button', { name: "Don't save" }).click();
   await expect(page.locator('#favs')).toBeHidden();
 });

@@ -53,7 +53,7 @@ for (const width of [360, 412]) {
       await expect(page.locator('#editor-total')).toBeVisible();
       await expect(page.locator('#ask')).toBeVisible();
       expect.soft(await page.evaluate(wrappedLabels), 'results').toEqual([]);
-      await page.getByRole('button', { name: '☆ Save as a favourite' }).click();
+      await page.getByRole('button', { name: 'Save as a favourite' }).click();
       await page.getByRole('button', { name: 'Save meal' }).click();
       await expect(page.locator('#favs')).toBeVisible();
       expect.soft(await page.evaluate(wrappedLabels), 'saved').toEqual([]);
