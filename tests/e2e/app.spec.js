@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
-import { KEYS, NASI, geminiBody, deepseekBody, mockModels, seedKeys, open, photoEstimate } from './helpers.js';
+import { KEYS, NASI, geminiBody, deepseekBody, mockModels, seedKeys, open, photoEstimate, settingsRow } from './helpers.js';
 
 const OK = { status: 200, body: geminiBody(NASI) };
 const busy = (status) => ({ status, body: { error: { message: 'The model is overloaded' } } });
@@ -244,8 +244,10 @@ test.describe('with keys', () => {
     await open(page);
     await photoEstimate(page);
     await page.getByRole('button', { name: 'Save meal' }).click();
-    await page.getByRole('button', { name: 'Settings' }).click();
+    await settingsRow(page, 'backup');
+    await expect(page.locator('#backup-status')).toHaveText('Never saved');
     const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Save a copy' }).click()]);
+    await expect(page.locator('#backup-status')).toHaveText(/^Saved \d+ \w+$/);
     const file = await download.path();
     const data = JSON.parse(await readFile(file, 'utf8'));
     expect(data.entries).toHaveLength(1);

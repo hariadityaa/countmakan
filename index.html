@@ -84,7 +84,7 @@
 
     <section id="tab-settings" aria-label="Settings" hidden>
       <details class="card setup" id="goals">
-        <summary><span class="goals-head"><span>Daily goals</span><span class="summary-meta" id="goals-meta"></span></span><span class="edit-pill" aria-hidden="true"></span></summary>
+        <summary><span class="goals-title">Daily goals</span><span class="edit-pill" aria-hidden="true"></span><span class="goal-tiles" id="goals-meta"></span></summary>
         <div class="grid2" id="targets"></div>
         <button type="button" class="btn primary" id="save-targets" hidden>Save goals</button>
         <details id="suggest" class="guide">
@@ -108,8 +108,9 @@
         </details>
       </details>
 
-      <div class="card">
-        <h2>Google Health</h2>
+      <div class="card list">
+      <details class="list-row" id="health-row">
+        <summary><span>Google Health</span><span class="row-status" id="health-row-status"></span></summary>
         <label class="switch-row" id="health-on-row" hidden>
           <span>Send new meals</span>
           <input type="checkbox" role="switch" class="switch" id="health-on">
@@ -124,20 +125,20 @@
         </div>
         <button type="button" class="btn primary" id="health-connect">Connect</button>
         <button type="button" class="btn" id="health-disconnect">Disconnect</button>
-      </div>
+      </details>
 
-      <div class="card">
-        <h2>Backup</h2>
+      <details class="list-row" id="backup">
+        <summary><span>Backup</span><span class="row-status" id="backup-status"></span></summary>
         <p class="muted">Keep a copy of all your meals in a file.</p>
         <button type="button" class="btn" id="export">Save a copy</button>
         <label class="btn">Restore from a copy
           <input type="file" accept="application/json,.json" id="import" class="file-input">
         </label>
         <p class="status" id="io-status" role="status"></p>
-      </div>
+      </details>
 
-      <details class="card setup" id="setup">
-        <summary>Setup (API keys)</summary>
+      <details class="list-row" id="setup">
+        <summary><span>Setup (API keys)</span><span class="row-status" id="setup-status"></span></summary>
         <p class="muted">Keys stay on this phone only.</p>
         <label for="key-gemini">Gemini API key (free)</label>
         <input id="key-gemini" type="password" autocomplete="off" spellcheck="false">
@@ -177,10 +178,11 @@
         <ol class="muted chain" id="chain"></ol>
         <button type="button" class="btn" id="reset-order" hidden>Reset order</button>
       </details>
-      <div class="card">
-        <h2>Share app</h2>
+      <details class="list-row" id="share">
+        <summary><span>Share app</span></summary>
         <p class="muted">Send Makan Meter to a friend. Only the link is shared, never your data or keys.</p>
         <button type="button" class="btn" id="share-app">Share link</button>
+      </details>
       </div>
     </section>
   </main>

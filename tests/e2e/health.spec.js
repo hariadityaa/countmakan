@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { NASI, geminiBody, mockModels, seedKeys, open, photoEstimate, mockHealth, connect } from './helpers.js';
+import { NASI, geminiBody, mockModels, seedKeys, open, photoEstimate, mockHealth, connect, settingsRow } from './helpers.js';
 
 const posts = (calls) => calls.filter((c) => c.method === 'POST' && !c.url.includes(':batchDelete'));
 const deletes = (calls) => calls.filter((c) => c.url.includes(':batchDelete'));
@@ -12,7 +12,7 @@ test('connected: save sends the meal, edit replaces it, delete removes it after 
   const calls = await mockHealth(page);
   await open(page);
 
-  await page.getByRole('button', { name: 'Settings' }).click();
+  await settingsRow(page, 'health-row');
   await expect(page.locator('#health-status')).toHaveText(/Send each new meal/);
   await page.getByRole('button', { name: 'Connect' }).click();
   await expect(page.locator('#toast')).toHaveText('Connected to Google Health ✓');
@@ -45,7 +45,7 @@ test('undo inside the window keeps the Google Health log', async ({ page }) => {
   await mockModels(page, { 'gemini-3.8-flash': { status: 200, body: geminiBody(NASI) } });
   const calls = await mockHealth(page);
   await open(page);
-  await page.getByRole('button', { name: 'Settings' }).click();
+  await settingsRow(page, 'health-row');
   await page.getByRole('button', { name: 'Connect' }).click();
   await page.getByRole('button', { name: 'Today' }).click();
   await photoEstimate(page);
@@ -100,7 +100,7 @@ test('expired sign-in: saving offers Send, Settings offers Send now', async ({ p
   await expect(page.locator('#toast-text')).toHaveText('Meal saved. Not in Google Health yet.');
   if (process.env.SHOT_DIR) await page.screenshot({ path: `${process.env.SHOT_DIR}/toast.png` });
 
-  await page.getByRole('button', { name: 'Settings' }).click();
+  await settingsRow(page, 'health-row');
   await expect(page.locator('#health-status')).toContainText('1 meal is waiting to send.');
   await page.locator('#health-signin').scrollIntoViewIfNeeded();
   if (process.env.SHOT_DIR) {
@@ -147,7 +147,7 @@ test('sync off: new meals stay local, deletes wait, past meals send on demand', 
   await page.getByRole('button', { name: 'Save meal' }).click();
   await expect.poll(() => posts(calls).length).toBe(1);
 
-  await page.getByRole('button', { name: 'Settings' }).click();
+  await settingsRow(page, 'health-row');
   await page.getByRole('switch', { name: 'Send new meals' }).uncheck();
   await expect(page.locator('#health-status')).toHaveText(/^Off\. New meals stay in this app only\./);
   await expect(page.locator('#health-past')).toBeHidden();
@@ -162,7 +162,7 @@ test('sync off: new meals stay local, deletes wait, past meals send on demand', 
   await page.waitForTimeout(10500);
   expect(calls).toHaveLength(1);
 
-  await page.getByRole('button', { name: 'Settings' }).click();
+  await settingsRow(page, 'health-row');
   await expect(page.locator('#health-status')).toHaveText(/1 change waits until you turn it back on/);
   await page.getByRole('switch', { name: 'Send new meals' }).check();
   await expect.poll(() => deletes(calls).length).toBe(1);
