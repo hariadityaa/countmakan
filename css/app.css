@@ -382,3 +382,25 @@ pre { white-space: pre-wrap; word-break: break-word; font: .875rem/1.5 var(--fon
 .chain-btns { display: flex; gap: var(--s-2); flex: none; }
 .chain-btns .btn { width: var(--control-h); padding: 0; margin: 0; }
 .scan-details { margin-top: var(--s-3); font-size: .875rem; overflow-wrap: anywhere; }
+
+/* Bottom sheet for compose, failure and editor. Modal, so the tab bar is out of reach. */
+.sheet {
+  position: fixed; inset: auto 0 0; margin: 0 auto; padding: 0 0 env(safe-area-inset-bottom);
+  width: 100%; max-width: var(--form-w); max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); border-bottom: 0; border-radius: var(--r-lg) var(--r-lg) 0 0;
+}
+.sheet[open] { animation: sheet-in 200ms ease-out; }
+.sheet::backdrop { background: var(--overlay); }
+@keyframes sheet-in { from { transform: translateY(100%); } }
+body:has(.sheet[open]) { overflow: hidden; }
+.sheet-grab {
+  position: sticky; top: 0; z-index: 1; height: var(--s-6);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface); touch-action: none; cursor: grab; outline: none;
+}
+.sheet-grab span { width: 36px; height: 4px; border-radius: var(--r-pill); background: var(--border-strong); }
+.sheet > .card { margin: 0; border: 0; border-radius: 0; padding-top: 0; }
+.sheet > .error-card { background: var(--surface); }
+/* Save and Cancel stay in reach while the foods scroll. */
+.sheet .editor-summary { position: sticky; top: var(--s-6); z-index: 1; background: var(--surface); padding-top: var(--s-2); }

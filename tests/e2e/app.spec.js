@@ -195,6 +195,22 @@ test.describe('with keys', () => {
 
     await page.locator('#history .entry').click();
     await expect(page.getByRole('heading', { name: 'Change this meal' })).toBeVisible();
+    // The sheet is modal: the tab bar can't be reached until it is closed.
+    const covered = await page.evaluate(() => {
+      const r = document.querySelector('nav button[data-tab=history]').getBoundingClientRect();
+      return !document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)?.closest('nav');
+    });
+    expect(covered).toBe(true);
+    // Esc (or Android Back) closes it. Nothing changed, so no question asked.
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#sheet')).not.toHaveAttribute('open', '');
+    await page.locator('#today-list .entry').click();
+    await page.locator('#item-0-grams').fill('999');
+    await page.locator('#item-0-grams').blur();
+    page.once('dialog', (dlg) => dlg.dismiss());
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#sheet')).toHaveAttribute('open', '');
+    await expect(page.locator('#item-0-grams')).toHaveValue('999');
     await page.getByRole('button', { name: 'Delete this meal' }).click();
     await expect(page.locator('#toast')).toContainText('Meal deleted.');
     await expect(page.locator('#today-list .entry')).toHaveCount(0);
