@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { macroSplit, daySeries, ringSvg, weekChartSvg } from '../js/charts.js';
+import { macroSplit, daySeries, ringSvg, weekChartSvg, dailyAverage, onTarget } from '../js/charts.js';
 
 test('macroSplit weights fat at 9 kcal per gram', () => {
   assert.deepEqual(macroSplit({ protein: 10, carbs: 10, fat: 0 }), { protein: 50, carbs: 50, fat: 0 });
@@ -31,6 +31,25 @@ test('ringSvg caps the arc and flags over target', () => {
   assert.doesNotMatch(ringSvg(0, 1800), /ring-val/);
   assert.match(ringSvg(900, 1800), /class="ring-val"/);
   assert.match(ringSvg(2000, 1800), /ring-val over/);
+  assert.match(ringSvg(1900, 1800), /class="ring-val"/);
+});
+
+test('onTarget allows 10% either side of the goal', () => {
+  assert.equal(onTarget(2036, 1920), true);
+  assert.equal(onTarget(1728, 1920), true);
+  assert.equal(onTarget(2113, 1920), false);
+  assert.equal(onTarget(1000, 0), false);
+});
+
+test('dailyAverage skips today and empty days', () => {
+  const entries = [
+    { day: '2026-10-17', items: [{ kcal: 5000 }] },
+    { day: '2026-10-16', items: [{ kcal: 2000 }] },
+    { day: '2026-10-14', items: [{ kcal: 1600 }] },
+    { day: '2026-10-09', items: [{ kcal: 900 }] },
+  ];
+  assert.deepEqual(dailyAverage(entries, '2026-10-17'), { kcal: 1800, days: 2 });
+  assert.equal(dailyAverage([{ day: '2026-10-17', items: [{ kcal: 1 }] }], '2026-10-17'), null);
 });
 
 test('weekChartSvg draws empty days hollow and escapes labels', () => {

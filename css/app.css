@@ -117,6 +117,7 @@ textarea { padding: var(--s-2) var(--s-3); resize: vertical; }
 .bar { height: 8px; background: var(--border); border-radius: var(--r-sm); overflow: hidden; margin-top: var(--s-1); }
 .bar > i { display: block; height: 100%; background: var(--accent); border-radius: var(--r-sm); transition: width 400ms ease; }
 .over-tag { color: var(--over); font-weight: 600; }
+.hit-tag { color: var(--green); font-weight: 600; }
 .nowrap { white-space: nowrap; }
 
 /* Calorie ring */
@@ -132,6 +133,7 @@ textarea { padding: var(--s-2) var(--s-3); resize: vertical; }
 .hero-left { font-size: 1.5rem; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; }
 .hero-left.over { color: var(--over); }
 .hero-text { color: var(--text-2); }
+.avg-line { margin-top: var(--s-2); font-size: .875rem; font-variant-numeric: tabular-nums; }
 @media (max-width: 374px) {
   .hero { gap: var(--s-4); }
   .ring-wrap { width: 128px; height: 128px; }

@@ -6,6 +6,11 @@ import { localDay } from './io.js';
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const r1 = (n) => Math.round(n * 10) / 10;
 
+// Calorie estimates are rough, so a day within 10% of the goal counts as on target.
+export const TOLERANCE = 0.1;
+export const isOver = (value, target) => target > 0 && value > target * (1 + TOLERANCE);
+export const onTarget = (value, target) => target > 0 && Math.abs(value - target) <= target * TOLERANCE;
+
 // Calories per gram for each macro.
 export const KCAL_PER_G = { protein: 4, carbs: 4, fat: 9 };
 
@@ -38,12 +43,22 @@ export function daySeries(entries, endDay, n = 7) {
   return out;
 }
 
+// Mean calories over the n days before today, skipping days with no meals.
+// Today is left out because it is still in progress. Returns null when nothing was logged.
+export function dailyAverage(entries, today, n = 7) {
+  const end = new Date(`${today}T12:00:00`);
+  end.setDate(end.getDate() - 1);
+  const logged = daySeries(entries, localDay(end), n).filter((d) => d.logged);
+  if (!logged.length) return null;
+  return { kcal: logged.reduce((a, d) => a + d.kcal, 0) / logged.length, days: logged.length };
+}
+
 // Progress ring for calories eaten against target.
 export function ringSvg(value, target) {
   const R = 50;
   const C = 2 * Math.PI * R;
   const frac = target > 0 ? Math.min(1, value / target) : 0;
-  const over = target > 0 && value > target;
+  const over = isOver(value, target);
   const arc = frac > 0
     ? `<circle class="ring-val${over ? ' over' : ''}" cx="60" cy="60" r="${R}" stroke-dasharray="${r1(C * frac)} ${r1(C)}" transform="rotate(-90 60 60)"/>`
     : '';
@@ -71,7 +86,7 @@ export function weekChartSvg(series, target, today) {
     const x = left + slot * i + (slot - bw) / 2;
     const cls = s.day === today ? ' today' : '';
     if (s.logged && s.kcal > 0) {
-      const over = target > 0 && s.kcal > target;
+      const over = isOver(s.kcal, target);
       parts.push(`<path class="wk-bar${over ? ' over' : ''}" d="${barPath(x, y(s.kcal), bw, base - y(s.kcal))}"/>`);
     } else {
       parts.push(`<rect class="wk-empty" x="${r1(x + 0.5)}" y="${base - 12}" width="${r1(bw - 1)}" height="11.5" rx="3"/>`);
