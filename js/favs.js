@@ -41,6 +41,12 @@ export function cleanFavs(list) {
   return out;
 }
 
+// Moves the favourite just logged to the front, so the last used one shows first.
+export function bumpFav(favs, id) {
+  const i = favs.findIndex((f) => f.id === id);
+  return i > 0 ? [favs[i], ...favs.slice(0, i), ...favs.slice(i + 1)] : favs;
+}
+
 // A favourite from a meal being edited. id is reused so the editor can toggle it.
 export function favFromEntry(entry, id) {
   const { title, more } = mealTitle(entry.items, entry.text);
