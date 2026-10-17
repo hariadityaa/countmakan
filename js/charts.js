@@ -89,7 +89,7 @@ function barPath(x, y, w, h) {
 // series: rows from daySeries, each with an added label (short weekday).
 export function weekChartSvg(series, target, today) {
   const W = 320, top = 14, base = 118, left = 4;
-  const goal = target > 0 ? `Goal ${Math.round(target).toLocaleString('en')}` : '';
+  const goal = target > 0 ? Math.round(target).toLocaleString('en') : '';
   // Right gutter for the goal label, so it never sits on a bar. ~7 units per character at 13px.
   const right = W - 4 - (goal ? goal.length * 7 + 8 : 0);
   const max = Math.max(target * 1.15, ...series.map((s) => s.kcal * 1.05), 1);

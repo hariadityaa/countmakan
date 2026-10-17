@@ -69,7 +69,7 @@ test('weekChartSvg draws empty days hollow and escapes labels', () => {
   assert.match(svg, /wk-bar over/);
   assert.match(svg, /wk-empty/);
   assert.match(svg, /wk-target/);
-  assert.match(svg, />Goal 1,800</);
+  assert.match(svg, />1,800</);
   assert.doesNotMatch(svg, /<b>/);
   assert.equal((svg.match(/wk-hit/g) || []).length, 2);
 });
