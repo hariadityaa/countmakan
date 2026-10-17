@@ -32,6 +32,8 @@ const state = {
   order: [], // saved provider order, as step ids. Empty means the default CHAIN order.
   photoUrl: '', // object URL for the open entry's full photo
   draft: null, // entry being edited
+  draftSnap: '', // draft as opened, to tell if anything changed
+  step: 'add',
   favs: [],
   answers: [], // [{ q, a }] for the follow-up question
   abort: null, // AbortController for the running estimate
@@ -110,6 +112,9 @@ function toast(text, { action, onAction, ms = 4000 } = {}) {
       onAction();
     }
     : null;
+  // An open sheet sits in the top layer, so the toast moves inside it to stay visible.
+  const host = $('#sheet').open ? $('#sheet') : document.body;
+  if ($('#toast').parentNode !== host) host.append($('#toast'));
   $('#toast').hidden = false;
   toastTimer = setTimeout(hideToast, ms);
 }
@@ -141,8 +146,11 @@ function showTab(name) {
 
 // ---------- Today: which step is showing ----------
 // One step at a time: add, compose, loading, failure or editor.
+const SHEET_STEPS = { compose: 'Add a meal', failure: 'Something went wrong', editor: 'Check your meal' };
 function showStep(step) {
+  state.step = step;
   for (const id of ['add', 'compose', 'loading', 'failure', 'editor']) $(`#${id}`).hidden = id !== step;
+  showSheet(SHEET_STEPS[step]);
   $('#favs').hidden = step !== 'add' || !hasKeys() || !state.favs.length;
   // While waiting, the rest of the app can't be tapped or reached by keyboard.
   const busy = step === 'loading';
@@ -157,6 +165,73 @@ function showStep(step) {
   $('#meals').hidden = !home;
   $('#not-set-up').hidden = hasKeys();
   $('#welcome').hidden = !hasKeys() || state.entries.length > 0 || step !== 'add';
+}
+
+// ---------- Sheet: compose, failure and editor ----------
+// Modal, so the tab bar can't be reached until the meal is saved or cancelled.
+function showSheet(label) {
+  const sheet = $('#sheet');
+  if (!label) {
+    if (sheet.open) sheet.close();
+    document.body.append($('#toast'));
+    return;
+  }
+  sheet.setAttribute('aria-label', label);
+  if (!sheet.open) sheet.showModal();
+  sheet.scrollTop = 0;
+}
+
+function sheetDirty() {
+  // Commit an edit that is still focused, so its change event runs first.
+  document.activeElement?.blur?.();
+  if (state.step === 'compose') return $('#meal-text').value.trim() !== '';
+  if (state.step === 'editor') return state.draft.isNew || draftSnap(state.draft) !== state.draftSnap;
+  return false;
+}
+
+function draftSnap(d) {
+  return JSON.stringify([d.items, d.ts]);
+}
+
+// Back, Esc, a tap above the sheet or a swipe down. Asks first if work would be lost.
+function dismissSheet() {
+  const step = state.step;
+  if (!SHEET_STEPS[step]) return;
+  if (sheetDirty() && !confirm(step === 'editor' && state.draft.isNew ? "Don't save this meal?" : 'Discard your changes?')) {
+    if (!$('#sheet').open) $('#sheet').showModal();
+    return;
+  }
+  if (step === 'editor') closeEditor();
+  else resetAdd();
+}
+
+function initSheet() {
+  const sheet = $('#sheet');
+  sheet.addEventListener('cancel', (ev) => {
+    ev.preventDefault();
+    dismissSheet();
+  });
+  // Android may close it without a cancel event after repeated Back presses.
+  sheet.addEventListener('close', () => { if (!sheet.open && SHEET_STEPS[state.step]) dismissSheet(); });
+  sheet.addEventListener('click', (ev) => { if (ev.target === sheet) dismissSheet(); });
+  const grab = $('#sheet-grab');
+  let startY = null;
+  grab.addEventListener('pointerdown', (ev) => {
+    startY = ev.clientY;
+    grab.setPointerCapture(ev.pointerId);
+  });
+  grab.addEventListener('pointermove', (ev) => {
+    if (startY !== null) sheet.style.translate = `0 ${Math.max(0, ev.clientY - startY)}px`;
+  });
+  const end = (ev) => {
+    if (startY === null) return;
+    const dy = ev.clientY - startY;
+    startY = null;
+    sheet.style.translate = '';
+    if (ev.type === 'pointerup' && dy > 80) dismissSheet();
+  };
+  grab.addEventListener('pointerup', end);
+  grab.addEventListener('pointercancel', end);
 }
 
 function resetAdd() {
@@ -535,7 +610,6 @@ function showFailure({ text, details }) {
   $('#failure-details').textContent = details;
   $('#failure details').open = false;
   showStep('failure');
-  $('#failure').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ---------- Editor ----------
@@ -550,12 +624,12 @@ function openEditor(entry) {
   entry.portion = 1;
   entry.base = structuredClone(entry.items);
   state.draft = entry;
+  state.draftSnap = draftSnap(entry);
   if (state.photoUrl) URL.revokeObjectURL(state.photoUrl);
   state.photoUrl = entry.photo ? URL.createObjectURL(entry.photo) : '';
   showTab('today');
   renderEditor();
   showStep('editor');
-  $('#editor').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function closeEditor() {
@@ -1139,6 +1213,7 @@ async function boot() {
   $('#cancel-estimate').addEventListener('click', cancelEstimate);
   $('#retry').addEventListener('click', () => runEstimate());
   $('#start-over').addEventListener('click', resetAdd);
+  initSheet();
   $('#save-keys').addEventListener('click', () => {
     state.keys = saveKeys(readKeyInputs());
     renderSettings();

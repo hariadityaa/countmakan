@@ -64,6 +64,7 @@ for (const width of [360, 412]) {
 
       await page.getByRole('button', { name: 'Type it in' }).click();
       expect.soft(await page.evaluate(wrappedLabels), 'type it in').toEqual([]);
+      await page.getByRole('button', { name: 'Cancel' }).click();
 
       await page.locator('nav button[data-tab=history]').click();
       expect.soft(await page.evaluate(wrappedLabels), 'history').toEqual([]);

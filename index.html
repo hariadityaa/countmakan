@@ -67,36 +67,6 @@
       </div>
       <div class="card" id="summary"></div>
 
-      <!-- Step 2: check the photo or text before sending -->
-      <div class="card" id="compose" hidden>
-        <h2 id="compose-title">Is this the right photo?</h2>
-        <img id="preview-img" alt="The photo you chose">
-        <label for="meal-text" id="meal-text-label">Anything to add? (optional)</label>
-        <textarea id="meal-text" rows="3" placeholder="For example: half a plate of rice"></textarea>
-        <button type="button" class="btn primary" id="estimate">Count calories</button>
-        <div class="row">
-          <label class="btn" id="choose-another">Change photo
-            <input type="file" accept="image/*" id="replace" class="file-input">
-          </label>
-          <button type="button" class="btn" id="cancel-compose">Cancel</button>
-        </div>
-        <p class="form-error" id="compose-error" role="alert"></p>
-      </div>
-
-      <!-- Step 3b: something went wrong -->
-      <div class="card error-card" id="failure" hidden role="alert">
-        <p class="error-text" id="failure-text"></p>
-        <button type="button" class="btn primary" id="retry">Try again</button>
-        <button type="button" class="btn" id="start-over">Start over</button>
-        <details>
-          <summary>Details</summary>
-          <pre id="failure-details"></pre>
-        </details>
-      </div>
-
-      <!-- Step 4: check and save -->
-      <div class="card" id="editor" hidden></div>
-
       <div class="card" id="meals">
         <h2>Today's meals</h2>
         <ul class="entries" id="today-list"></ul>
@@ -229,6 +199,40 @@
     </div>
     <button type="button" class="stop" id="cancel-estimate">Stop and go back</button>
   </div>
+
+  <!-- Steps 2, 3b and 4 sit in a modal sheet, so a meal is finished or cancelled before you can leave. -->
+  <dialog class="sheet" id="sheet">
+    <div class="sheet-grab" id="sheet-grab" tabindex="-1" autofocus aria-hidden="true"><span></span></div>
+    <!-- Step 2: check the photo or text before sending -->
+    <div class="card" id="compose" hidden>
+      <h2 id="compose-title">Is this the right photo?</h2>
+      <img id="preview-img" alt="The photo you chose">
+      <label for="meal-text" id="meal-text-label">Anything to add? (optional)</label>
+      <textarea id="meal-text" rows="3" placeholder="For example: half a plate of rice"></textarea>
+      <button type="button" class="btn primary" id="estimate">Count calories</button>
+      <div class="row">
+        <label class="btn" id="choose-another">Change photo
+          <input type="file" accept="image/*" id="replace" class="file-input">
+        </label>
+        <button type="button" class="btn" id="cancel-compose">Cancel</button>
+      </div>
+      <p class="form-error" id="compose-error" role="alert"></p>
+    </div>
+
+    <!-- Step 3b: something went wrong -->
+    <div class="card error-card" id="failure" hidden role="alert">
+      <p class="error-text" id="failure-text"></p>
+      <button type="button" class="btn primary" id="retry">Try again</button>
+      <button type="button" class="btn" id="start-over">Start over</button>
+      <details>
+        <summary>Details</summary>
+        <pre id="failure-details"></pre>
+      </details>
+    </div>
+
+    <!-- Step 4: check and save -->
+    <div class="card" id="editor" hidden></div>
+  </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden>
     <span id="toast-text"></span>

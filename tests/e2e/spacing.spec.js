@@ -121,6 +121,7 @@ for (const width of [360, 412]) {
       await page.getByRole('button', { name: 'Cancel' }).click();
       await page.getByRole('button', { name: 'Type it in' }).click();
       await check(page, 'type it in');
+      await page.getByRole('button', { name: 'Cancel' }).click();
 
       await page.locator('nav button[data-tab=history]').click();
       await check(page, 'history');
