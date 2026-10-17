@@ -345,14 +345,32 @@ pre { white-space: pre-wrap; word-break: break-word; font: .875rem/1.5 var(--fon
 /* A summary centres its text in a 40px tap row. Trim the card padding by that slack so the text sits 24px from the edge. */
 .card.setup { padding-top: var(--s-4); }
 .card.setup:not([open]) { padding-bottom: var(--s-4); }
-/* Daily goals: closed it shows the saved goals and an Edit button, so it reads as editable. */
-#goals summary { justify-content: space-between; gap: var(--s-3); }
-.goals-head { display: flex; flex-direction: column; min-width: 0; }
-.summary-meta { font-size: .875rem; font-weight: 400; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#goals[open] .summary-meta { display: none; }
-.edit-pill { flex: none; display: flex; align-items: center; min-height: var(--control-h); padding: 0 var(--s-4); font-size: 1rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r); }
+/* Daily goals: the one card everyone uses. Closed, it shows the goals as tiles and a filled Edit button. */
+#goals summary { flex-wrap: wrap; justify-content: space-between; gap: var(--s-3); }
+.goals-title { font-size: 1.25rem; }
+.goal-tiles { flex-basis: 100%; display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s-2); }
+#goals[open] .goal-tiles { display: none; }
+.goal-tile { display: flex; flex-direction: column; padding: var(--s-2) var(--s-3); background: var(--surface-2); border-radius: var(--r); }
+.goal-tile b { font-size: 1.125rem; font-weight: 600; }
+.goal-tile span { font-size: .75rem; font-weight: 400; color: var(--text-2); }
+.goal-tile.protein span { color: var(--protein); }
+.goal-tile.carbs span { color: var(--carbs); }
+.goal-tile.fat span { color: var(--fat); }
+.edit-pill { flex: none; display: flex; align-items: center; min-height: var(--control-h); padding: 0 var(--s-4); font-size: 1rem; background: var(--accent); color: var(--accent-text); border-radius: var(--r); }
 .edit-pill::after { content: "Edit"; }
+#goals[open] .edit-pill { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
 #goals[open] .edit-pill::after { content: "Close"; }
+/* Everything else: quiet rows in one card, each with its status and a chevron. */
+.card.list { padding-block: var(--s-2); }
+.list-row + .list-row::before { content: ""; display: block; height: 1px; background: var(--border); }
+.list-row > summary { min-height: var(--row-h); gap: var(--s-2); white-space: nowrap; }
+.list-row > summary > :first-child { flex: 1 0 auto; }
+.list-row > summary::after { content: "›"; display: inline-block; color: var(--text-3); font-size: 1.25rem; transition: transform .15s; }
+.list-row[open] > summary::after { transform: rotate(90deg); }
+.list-row[open] { padding-bottom: var(--s-4); }
+.row-status { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 400; color: var(--text-2); }
+.row-status.warn { color: var(--over); }
+.card.list > details:last-child:not([open]) { margin-bottom: 0; }
 .setup li { margin: var(--s-1) 0; }
 .setup li:last-child { margin-bottom: 0; }
 .guide { margin-top: var(--s-2); }

@@ -99,6 +99,7 @@ for (const width of [360, 412]) {
       await check(page, 'settings, suggest open');
       await page.locator('#setup > summary').click();
       await check(page, 'settings, setup open');
+      await page.locator('#backup > summary').click();
       await page.locator('#export').click();
       await expect(page.locator('#io-status')).not.toBeEmpty();
       await check(page, 'settings, after save a copy');

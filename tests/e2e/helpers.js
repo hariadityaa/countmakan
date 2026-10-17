@@ -80,8 +80,15 @@ export async function mockHealth(page) {
   return calls;
 }
 
-export async function connect(page) {
+// Settings rows start closed. Go to Settings and open one.
+export async function settingsRow(page, id) {
   await page.getByRole('button', { name: 'Settings' }).click();
+  const row = page.locator(`#${id}`);
+  if (await row.getAttribute('open') === null) await row.locator('> summary').click();
+}
+
+export async function connect(page) {
+  await settingsRow(page, 'health-row');
   await page.getByRole('button', { name: 'Connect' }).click();
   await expect(page.locator('#toast')).toHaveText('Connected to Google Health ✓');
 }

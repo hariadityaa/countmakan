@@ -853,6 +853,9 @@ function renderHealth() {
       : ['Off. New meals stay in this app only.',
         held ? `${held === 1 ? '1 change waits' : `${held} changes wait`} until you turn it back on.` : ''];
   $('#health-status').textContent = lines.filter(Boolean).join(' ');
+  const row = $('#health-row-status');
+  row.textContent = !connected ? 'Not connected' : !on ? 'Off' : waiting ? `${meals(waiting)} waiting` : 'On';
+  row.classList.toggle('warn', connected && on && waiting > 0);
   $('#health-on-row').hidden = !connected;
   $('#health-on').checked = on;
   $('#health-signin').hidden = !showSyncCard() || state.healthBusy;
@@ -964,6 +967,7 @@ function renderSettings() {
     el('label', { for: `t-${m}` }, GOAL_LABELS[m]),
     el('input', { id: `t-${m}`, type: 'number', inputmode: 'numeric', min: '0', value: state.targets[m] }))));
   syncSaveTargets();
+  renderRowStatus();
   if (!localStorage.getItem('countmakan.targets')) $('#goals').open = true;
   health.preload().catch(() => {});
   renderHealth();
@@ -1065,7 +1069,9 @@ function syncSaveTargets() {
   const btn = $('#save-targets');
   btn.hidden = !dirty;
   const t = state.targets;
-  $('#goals-meta').textContent = `${fmt(t.kcal)} kcal · P${t.protein} C${t.carbs} F${t.fat}`;
+  $('#goals-meta').replaceChildren(
+    el('span', { class: 'goal-tile' }, el('b', {}, fmt(t.kcal)), el('span', {}, 'kcal')),
+    ...MACRO_KEYS.map((m) => el('span', { class: `goal-tile ${m}` }, el('b', {}, `${t[m]}g`), el('span', {}, MACRO_NAMES[m]))));
 }
 
 // ---------- Suggest goals ----------
@@ -1136,6 +1142,21 @@ function onExport() {
   a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   setStatus($('#io-status'), `Saved a copy of ${data.entries.length} meals.`);
+  localStorage.setItem('countmakan.lastBackup', new Date().toISOString());
+  renderRowStatus();
+}
+
+// Settings rows show where each one stands. Amber means it needs doing.
+function renderRowStatus() {
+  const last = localStorage.getItem('countmakan.lastBackup');
+  const backup = $('#backup-status');
+  backup.textContent = last
+    ? `Saved ${new Date(last).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
+    : state.entries.length ? 'Never saved' : 'No meals yet';
+  backup.classList.toggle('warn', !last && state.entries.length > 0);
+  const setup = $('#setup-status');
+  setup.textContent = hasKeys() ? 'Key saved' : 'No key';
+  setup.classList.toggle('warn', !hasKeys());
 }
 
 async function onImport(ev) {
