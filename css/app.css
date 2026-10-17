@@ -131,12 +131,18 @@ textarea { padding: var(--s-2) var(--s-3); resize: vertical; }
 .ring-track { stroke: var(--border); }
 .ring-val { stroke: var(--accent); stroke-linecap: round; transition: stroke-dasharray 400ms ease; }
 .ring-val.over { stroke: var(--over); }
+.ring-seg.protein { stroke: var(--protein); }
+.ring-seg.carbs { stroke: var(--carbs); }
+.ring-seg.fat { stroke: var(--fat); }
+.big-num.over { color: var(--over); }
 .ring-center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
 .ring-unit { font-size: .875rem; color: var(--text-2); }
-.hero-left { font-size: 1.5rem; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; }
-.hero-left.over { color: var(--over); }
+.hero-status { font-size: 1.25rem; font-weight: 600; line-height: 1.2; color: var(--text); margin-bottom: var(--s-3); }
+.hero-status.over { color: var(--over); }
+.hero-text .stat + .stat { margin-top: var(--s-2); }
+.stat-label { font-size: .875rem; }
+.stat-num { font-size: 1.25rem; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
 .hero-text { color: var(--text-2); }
-.avg-line { margin-top: var(--s-2); font-size: .875rem; font-variant-numeric: tabular-nums; }
 @media (max-width: 374px) {
   .hero { gap: var(--s-4); }
   .ring-wrap { width: 128px; height: 128px; }
@@ -144,16 +150,9 @@ textarea { padding: var(--s-2) var(--s-3); resize: vertical; }
 
 /* Macro colours */
 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
-.dot.protein, .bar > i.protein, .split-bar > i.protein { background: var(--protein); }
-.dot.carbs, .bar > i.carbs, .split-bar > i.carbs { background: var(--carbs); }
-.dot.fat, .bar > i.fat, .split-bar > i.fat { background: var(--fat); }
-.split { margin-top: var(--s-6); }
-.split-title { font-size: .875rem; color: var(--text-2); }
-.split-bar { display: flex; gap: 2px; height: 12px; margin: var(--s-2) 0; }
-.split-bar > i { display: block; flex-basis: 0; min-width: 4px; }
-.split-bar > i:first-child { border-radius: var(--r-sm) 0 0 var(--r-sm); }
-.split-bar > i:last-child { border-radius: 0 var(--r-sm) var(--r-sm) 0; }
-.split-legend { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-4); font-size: .875rem; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.dot.protein, .bar > i.protein { background: var(--protein); }
+.dot.carbs, .bar > i.carbs { background: var(--carbs); }
+.dot.fat, .bar > i.fat { background: var(--fat); }
 
 /* Last 7 days chart */
 .wk-wrap { margin: var(--s-2) calc(-1 * var(--s-1)) 0; }

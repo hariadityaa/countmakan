@@ -34,6 +34,14 @@ test('ringSvg caps the arc and flags over target', () => {
   assert.match(ringSvg(1900, 1800), /class="ring-val"/);
 });
 
+test('ringSvg colours the arc by macro split', () => {
+  const svg = ringSvg(900, 1800, { protein: 50, carbs: 50, fat: 0 });
+  assert.match(svg, /ring-seg protein/);
+  assert.match(svg, /ring-seg carbs/);
+  assert.doesNotMatch(svg, /ring-seg fat/);
+  assert.doesNotMatch(svg, /ring-val/);
+});
+
 test('onTarget allows 10% either side of the goal', () => {
   assert.equal(onTarget(2036, 1920), true);
   assert.equal(onTarget(1728, 1920), true);
