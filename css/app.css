@@ -167,18 +167,12 @@ textarea { padding: var(--s-2) var(--s-3); resize: vertical; }
 .wk-empty { fill: none; stroke: var(--text-3); stroke-dasharray: 3 2; }
 .wk-base { stroke: var(--border-strong); }
 .wk-target { stroke: var(--text-2); stroke-width: 1.5; stroke-dasharray: 5 4; pointer-events: none; }
-.wk-label { fill: var(--text-2); font-size: 14px; font-family: var(--font); }
+.wk-label { fill: var(--text-2); font-size: 13px; font-family: var(--font); }
 .wk-label.today { fill: var(--text); font-weight: 600; }
+.wk-goal { fill: var(--text-2); font-size: 13px; font-family: var(--font); font-variant-numeric: tabular-nums; pointer-events: none; }
 .wk-hit { fill: transparent; cursor: pointer; }
 .wk-hit.active { fill: var(--text); fill-opacity: .06; }
-.wk-caption { margin: var(--s-3) 0 var(--s-4); min-height: 3em; font-variant-numeric: tabular-nums; }
-/* 2×2 grid so the four keys line up instead of wrapping raggedly. */
-.wk-legend { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2) var(--s-4); font-size: .875rem; color: var(--text-2); }
-.key { display: inline-block; width: 12px; height: 10px; margin-right: 6px; border-radius: 2px; }
-.key.under { background: var(--accent); }
-.key.over { background: var(--over); }
-.key.goal { height: 0; border-top: 2px dashed var(--text-2); border-radius: 0; vertical-align: 3px; }
-.key.none { border: 1px dashed var(--text-3); }
+.wk-caption { margin: var(--s-3) 0 0; min-height: 3em; font-variant-numeric: tabular-nums; }
 
 /* Notices */
 .notice { background: var(--surface-2); border-color: var(--border-strong); font-weight: 600; }
