@@ -85,10 +85,13 @@ function barPath(x, y, w, h) {
     + `H${r1(x + w - r)}Q${r1(x + w)} ${r1(y)} ${r1(x + w)} ${r1(y + r)}V${r1(y + h)}Z`;
 }
 
-// Daily calories as bars with a dashed target line.
+// Daily calories as bars with a dashed target line, labelled at its right end.
 // series: rows from daySeries, each with an added label (short weekday).
 export function weekChartSvg(series, target, today) {
-  const W = 320, top = 14, base = 118, left = 4, right = 316;
+  const W = 320, top = 14, base = 118, left = 4;
+  const goal = target > 0 ? Math.round(target).toLocaleString('en') : '';
+  // Right gutter for the goal label, so it never sits on a bar. ~7 units per character at 13px.
+  const right = W - 4 - (goal ? goal.length * 7 + 8 : 0);
   const max = Math.max(target * 1.15, ...series.map((s) => s.kcal * 1.05), 1);
   const y = (v) => base - (v / max) * (base - top);
   const slot = (right - left) / series.length;
@@ -110,6 +113,7 @@ export function weekChartSvg(series, target, today) {
   return `<svg class="wk" viewBox="0 0 ${W} 142" role="img" aria-label="Calories for the last ${series.length} days">`
     + `<line class="wk-base" x1="${left}" x2="${right}" y1="${base}" y2="${base}"/>`
     + parts.join('')
-    + (target > 0 ? `<line class="wk-target" x1="${left}" x2="${right}" y1="${ty}" y2="${ty}"/>` : '')
+    + (target > 0 ? `<line class="wk-target" x1="${left}" x2="${right}" y1="${ty}" y2="${ty}"/>`
+      + `<text class="wk-goal" x="${W - 4}" y="${ty}" text-anchor="end" dominant-baseline="central">${goal}</text>` : '')
     + '</svg>';
 }

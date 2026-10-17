@@ -373,12 +373,7 @@ function weekCard() {
   return el('div', { class: 'card' },
     el('h2', {}, 'Last 7 days'),
     chart,
-    caption,
-    el('div', { class: 'wk-legend' },
-      el('span', { class: 'nowrap' }, el('i', { class: 'key under' }), 'Under goal'),
-      el('span', { class: 'nowrap' }, el('i', { class: 'key over' }), 'Over goal'),
-      el('span', { class: 'nowrap' }, el('i', { class: 'key goal' }), `Goal ${fmt(goal)}`),
-      el('span', { class: 'nowrap' }, el('i', { class: 'key none' }), 'No meals')));
+    caption);
 }
 
 function renderHistory() {
