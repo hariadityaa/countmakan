@@ -83,10 +83,10 @@
     </section>
 
     <section id="tab-settings" aria-label="Settings" hidden>
-      <div class="card">
-        <h2>Daily goals</h2>
+      <details class="card setup" id="goals">
+        <summary><span class="goals-head"><span>Daily goals</span><span class="summary-meta" id="goals-meta"></span></span><span class="edit-pill" aria-hidden="true"></span></summary>
         <div class="grid2" id="targets"></div>
-        <button type="button" class="btn primary" id="save-targets">Save goals</button>
+        <button type="button" class="btn primary" id="save-targets" hidden>Save goals</button>
         <details id="suggest" class="guide">
           <summary>Not sure? Suggest for me</summary>
           <p class="muted">If a doctor gave you goals, or you have kidney disease, use the doctor's numbers instead.</p>
@@ -106,7 +106,7 @@
           <p class="status" id="suggest-status" role="status"></p>
           <ul class="muted" id="suggest-reasons"></ul>
         </details>
-      </div>
+      </details>
 
       <div class="card">
         <h2>Google Health</h2>

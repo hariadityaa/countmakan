@@ -964,6 +964,7 @@ function renderSettings() {
     el('label', { for: `t-${m}` }, GOAL_LABELS[m]),
     el('input', { id: `t-${m}`, type: 'number', inputmode: 'numeric', min: '0', value: state.targets[m] }))));
   syncSaveTargets();
+  if (!localStorage.getItem('countmakan.targets')) $('#goals').open = true;
   health.preload().catch(() => {});
   renderHealth();
   if (!state.keys.gemini) $('#gemini-guide').open = true;
@@ -1007,6 +1008,15 @@ function openOwnKeySetup() {
   $('#setup').scrollIntoView({ block: 'start' });
 }
 
+// First key, from Setup or a setup link: goals come next, with Suggest open. Close keeps the defaults.
+function openGoalSetup() {
+  showTab('settings');
+  $('#goals').open = true;
+  $('#suggest').open = true;
+  $('#goals').scrollIntoView({ block: 'start' });
+  toast("You're all set. Now set your daily goals, or close to keep the defaults.", { ms: 6000 });
+}
+
 function readKeyInputs() {
   return { gemini: $('#key-gemini').value, deepseek: $('#key-deepseek').value };
 }
@@ -1045,7 +1055,7 @@ function onSaveTargets() {
   toast('Goals saved ✓');
 }
 
-// Save is only live when a box differs from the saved goals. Otherwise it reads "Saved ✓".
+// Save only shows when a box differs from the saved goals.
 // Mirrors onSaveTargets: a blank or zero box is ignored, so it doesn't count as a change.
 function syncSaveTargets() {
   const dirty = GOALS.some((m) => {
@@ -1053,9 +1063,9 @@ function syncSaveTargets() {
     return v > 0 && v !== state.targets[m];
   });
   const btn = $('#save-targets');
-  btn.disabled = !dirty;
-  btn.classList.toggle('primary', dirty);
-  btn.textContent = dirty ? 'Save goals' : 'Saved ✓';
+  btn.hidden = !dirty;
+  const t = state.targets;
+  $('#goals-meta').textContent = `${fmt(t.kcal)} kcal · P${t.protein} C${t.carbs} F${t.fat}`;
 }
 
 // ---------- Suggest goals ----------
@@ -1212,10 +1222,12 @@ async function boot() {
   $('#start-over').addEventListener('click', resetAdd);
   initSheet();
   $('#save-keys').addEventListener('click', () => {
+    const first = !hasKeys();
     state.keys = saveKeys(readKeyInputs());
     renderSettings();
     showStep('add');
-    toast('Keys saved ✓');
+    if (first && hasKeys() && !localStorage.getItem('countmakan.targets')) openGoalSetup();
+    else toast('Keys saved ✓');
   });
   $('#test-keys').addEventListener('click', onTestKeys);
   $('#make-link').addEventListener('click', onMakeLink);
@@ -1248,7 +1260,8 @@ async function boot() {
     health.preload().catch(() => {});
     syncHealth();
   }
-  if (fromLink) toast("You're all set. Take a photo of your food to start.", { ms: 6000 });
+  if (fromLink && !localStorage.getItem('countmakan.targets')) openGoalSetup();
+  else if (fromLink) toast("You're all set. Take a photo of your food to start.", { ms: 6000 });
 
   watchForUpdates();
 }

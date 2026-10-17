@@ -43,14 +43,34 @@ test('without keys, Add my Gemini key opens Setup with the Gemini guide and Deep
   await expect(page.locator('#chain')).toContainText('DeepSeek · deepseek-flash (optional, no key)');
 });
 
-test('setup link saves keys, strips them from the address and shows the home screen', async ({ page }) => {
+test('setup link saves keys, strips them from the address and opens goal setup', async ({ page }) => {
   await open(page, `#setup?gemini=${KEYS.gemini}&deepseek=${KEYS.deepseek}`);
-  await expect(page.locator('#hero')).toBeVisible();
-  await expect(page.getByText("You're all set.")).toBeVisible();
-  await expect(page.getByText('Snap it before you eat.')).toBeVisible();
+  await expect(page.getByText('Now set your daily goals')).toBeVisible();
+  await expect(page.locator('#goals')).toHaveAttribute('open', '');
+  await expect(page.getByRole('button', { name: 'Suggest goals' })).toBeVisible();
   expect(page.url()).not.toContain('gemini=');
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('countmakan.keys')));
   expect(saved).toEqual(KEYS);
+  await page.locator('nav button[data-tab=today]').click();
+  await expect(page.locator('#hero')).toBeVisible();
+  await expect(page.getByText('Snap it before you eat.')).toBeVisible();
+});
+
+test('setup link goes straight to Today when goals are already saved', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('countmakan.targets', '{"kcal":2000}'));
+  await open(page, `#setup?gemini=${KEYS.gemini}`);
+  await expect(page.getByText("You're all set. Take a photo")).toBeVisible();
+  await expect(page.locator('#hero')).toBeVisible();
+});
+
+test('saving the first key by hand opens goal setup', async ({ page }) => {
+  await open(page);
+  await page.locator('nav button[data-tab=settings]').click();
+  await page.locator('#setup > summary').click();
+  await page.fill('#key-gemini', KEYS.gemini);
+  await page.locator('#save-keys').click();
+  await expect(page.getByText('Now set your daily goals')).toBeVisible();
+  await expect(page.locator('#goals')).toHaveAttribute('open', '');
 });
 
 test.describe('with keys', () => {
