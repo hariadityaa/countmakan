@@ -144,13 +144,13 @@ textarea { padding: var(--s-2) var(--s-3); resize: vertical; }
 .hero-status svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
 .hero-status.good { color: var(--green); background: rgb(34 197 94 / .14); }
 .hero-status.over { color: var(--over); background: rgb(245 158 11 / .14); }
-.hero-text .stat + .stat { margin-top: var(--s-2); }
 .stat-label { font-size: .875rem; }
-.stat-num { font-size: 1.25rem; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+.stat-label + .stat-label { margin-top: var(--s-1); }
 .hero-text { color: var(--text-2); }
 @media (max-width: 374px) {
   .hero { gap: var(--s-4); }
   .ring-wrap { width: 128px; height: 128px; }
+  .ring-wrap .big-num { font-size: 1.625rem; }
 }
 
 /* Macro colours */
