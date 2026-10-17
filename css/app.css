@@ -340,9 +340,14 @@ pre { white-space: pre-wrap; word-break: break-word; font: .875rem/1.5 var(--fon
 /* A summary centres its text in a 40px tap row. Trim the card padding by that slack so the text sits 24px from the edge. */
 .card.setup { padding-top: var(--s-4); }
 .card.setup:not([open]) { padding-bottom: var(--s-4); }
-#goals summary > :first-child { white-space: nowrap; }
-.summary-meta { margin-left: auto; padding-left: var(--s-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: .875rem; font-weight: 400; color: var(--text-2); }
+/* Daily goals: closed it shows the saved goals and an Edit button, so it reads as editable. */
+#goals summary { justify-content: space-between; gap: var(--s-3); }
+.goals-head { display: flex; flex-direction: column; min-width: 0; }
+.summary-meta { font-size: .875rem; font-weight: 400; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #goals[open] .summary-meta { display: none; }
+.edit-pill { flex: none; display: flex; align-items: center; min-height: var(--control-h); padding: 0 var(--s-4); font-size: 1rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r); }
+.edit-pill::after { content: "Edit"; }
+#goals[open] .edit-pill::after { content: "Close"; }
 .setup li { margin: var(--s-1) 0; }
 .setup li:last-child { margin-bottom: 0; }
 .guide { margin-top: var(--s-2); }

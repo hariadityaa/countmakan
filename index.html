@@ -83,26 +83,8 @@
     </section>
 
     <section id="tab-settings" aria-label="Settings" hidden>
-      <div class="card">
-        <h2>Google Health</h2>
-        <label class="switch-row" id="health-on-row" hidden>
-          <span>Send new meals</span>
-          <input type="checkbox" role="switch" class="switch" id="health-on">
-        </label>
-        <p class="muted" id="health-status"></p>
-        <button type="button" class="btn primary" id="health-signin" hidden>Send now</button>
-        <div id="health-past" hidden>
-          <p class="portion-label" id="health-past-label">Send past meals</p>
-          <div class="range-btns" id="health-range" role="group" aria-labelledby="health-past-label"></div>
-          <p class="muted" id="health-past-text"></p>
-          <button type="button" class="btn" id="health-past-btn">Send past meals</button>
-        </div>
-        <button type="button" class="btn primary" id="health-connect">Connect</button>
-        <button type="button" class="btn" id="health-disconnect">Disconnect</button>
-      </div>
-
       <details class="card setup" id="goals">
-        <summary><span>Daily goals</span><span class="summary-meta" id="goals-meta"></span></summary>
+        <summary><span class="goals-head"><span>Daily goals</span><span class="summary-meta" id="goals-meta"></span></span><span class="edit-pill" aria-hidden="true"></span></summary>
         <div class="grid2" id="targets"></div>
         <button type="button" class="btn primary" id="save-targets" hidden>Save goals</button>
         <details id="suggest" class="guide">
@@ -125,6 +107,24 @@
           <ul class="muted" id="suggest-reasons"></ul>
         </details>
       </details>
+
+      <div class="card">
+        <h2>Google Health</h2>
+        <label class="switch-row" id="health-on-row" hidden>
+          <span>Send new meals</span>
+          <input type="checkbox" role="switch" class="switch" id="health-on">
+        </label>
+        <p class="muted" id="health-status"></p>
+        <button type="button" class="btn primary" id="health-signin" hidden>Send now</button>
+        <div id="health-past" hidden>
+          <p class="portion-label" id="health-past-label">Send past meals</p>
+          <div class="range-btns" id="health-range" role="group" aria-labelledby="health-past-label"></div>
+          <p class="muted" id="health-past-text"></p>
+          <button type="button" class="btn" id="health-past-btn">Send past meals</button>
+        </div>
+        <button type="button" class="btn primary" id="health-connect">Connect</button>
+        <button type="button" class="btn" id="health-disconnect">Disconnect</button>
+      </div>
 
       <div class="card">
         <h2>Backup</h2>
