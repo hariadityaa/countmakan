@@ -327,11 +327,11 @@ function renderHistory() {
 // ---------- Favourites ----------
 function favRow(f) {
   const kcal = favKcal(f);
+  const more = f.items.length - 1;
   return el('li', {},
-    el('button', { type: 'button', class: 'entry', 'aria-label': `${f.name}, ${fmt(kcal)} calories. Tap to add it again.`, onclick: () => logAgain(f) },
-      f.thumb ? el('img', { src: f.thumb, alt: '' }) : foodIcon(f.items, f.name),
-      el('span', { class: 'meta' }, el('span', { class: 'name' }, f.name), el('span', { class: 'time' }, 'Tap to add again')),
-      el('span', { class: 'cal' }, fmt(kcal), el('small', {}, ' kcal'))));
+    el('button', { type: 'button', class: 'chip', 'aria-label': `${f.name}, ${fmt(kcal)} calories. Tap to add it again.`, onclick: () => logAgain(f) },
+      el('span', { class: 'name' }, more ? `${f.items[0].name} +${more}` : f.items[0].name),
+      el('span', { class: 'cal' }, fmt(kcal))));
 }
 
 function renderFavs() {

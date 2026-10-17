@@ -102,8 +102,8 @@ test('favourites: save one, log it again with no call, and send its portions as 
   await page.getByRole('button', { name: 'Save meal' }).click();
 
   await expect(page.locator('#favs')).toBeVisible();
-  await expect(page.locator('#fav-list .entry')).toHaveCount(1);
-  await page.locator('#fav-list .entry').click();
+  await expect(page.locator('#fav-list .chip')).toHaveCount(1);
+  await page.locator('#fav-list .chip').click();
   await expect(page.locator('#editor-total')).toHaveText('Total: 445 calories');
   await page.getByRole('button', { name: 'Save meal' }).click();
   await expect(page.locator('#today-list .entry')).toHaveCount(2);
@@ -112,7 +112,7 @@ test('favourites: save one, log it again with no call, and send its portions as 
   // Survives a reload.
   await page.reload();
   await page.waitForSelector('body[data-ready]', { state: 'attached' });
-  await expect(page.locator('#fav-list .entry')).toHaveCount(1);
+  await expect(page.locator('#fav-list .chip')).toHaveCount(1);
 
   await photoEstimate(page);
   await expect(page.locator('#editor-total')).toBeVisible();
@@ -121,7 +121,7 @@ test('favourites: save one, log it again with no call, and send its portions as 
   await page.getByRole('button', { name: "Don't save" }).click();
 
   // Removing it from the favourite's own editor hides the card.
-  await page.locator('#fav-list .entry').click();
+  await page.locator('#fav-list .chip').click();
   await page.getByRole('button', { name: 'Remove from favourites' }).click();
   await page.getByRole('button', { name: "Don't save" }).click();
   await expect(page.locator('#favs')).toBeHidden();
