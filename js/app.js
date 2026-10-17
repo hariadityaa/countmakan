@@ -1,7 +1,7 @@
 import { CHAIN, DEFAULT_TARGETS, THUMB_MAX_PX, KEEP_MAX_PX, MODEL_MAX_PX, MODEL_JPEG_QUALITY, PROVIDER_LABELS, OPTIONAL_PROVIDERS } from './config.js';
 import { estimate, testKey, applyOrder, stepId } from './chain.js';
 import { totals, scaleItem, scaleBy, normalizeItem, mealTitle } from './schema.js';
-import { loadFavs, saveFavs, favFromEntry, favRefs, mergeFavs, favKcal } from './favs.js';
+import { loadFavs, saveFavs, favFromEntry, favRefs, mergeFavs, favKcal, bumpFav } from './favs.js';
 import { parseSetupFragment, buildSetupLink, loadKeys, saveKeys, maskKey, PROVIDERS } from './keys.js';
 import { buildExport, parseImport, localDay } from './io.js';
 import { prepareImage } from './image.js';
@@ -327,11 +327,11 @@ function renderHistory() {
 // ---------- Favourites ----------
 function favRow(f) {
   const kcal = favKcal(f);
+  const more = f.items.length - 1;
   return el('li', {},
-    el('button', { type: 'button', class: 'entry', 'aria-label': `${f.name}, ${fmt(kcal)} calories. Tap to add it again.`, onclick: () => logAgain(f) },
-      f.thumb ? el('img', { src: f.thumb, alt: '' }) : foodIcon(f.items, f.name),
-      el('span', { class: 'meta' }, el('span', { class: 'name' }, f.name), el('span', { class: 'time' }, 'Tap to add again')),
-      el('span', { class: 'cal' }, fmt(kcal), el('small', {}, ' kcal'))));
+    el('button', { type: 'button', class: 'chip', 'aria-label': `${f.name}, ${fmt(kcal)} calories. Tap to add it again.`, onclick: () => logAgain(f) },
+      el('span', { class: 'name' }, more ? `${f.items[0].name} +${more}` : f.items[0].name),
+      el('span', { class: 'cal' }, fmt(kcal))));
 }
 
 function renderFavs() {
@@ -693,6 +693,12 @@ async function saveDraft() {
   }
   await db.putEntry(entry);
   state.entries = await db.allEntries();
+  if (isNew && state.favs[0]?.id !== entry.favId && state.favs.some((f) => f.id === entry.favId)) {
+    try {
+      state.favs = saveFavs(bumpFav(state.favs, entry.favId));
+      renderFavs();
+    } catch { /* Order is a nicety. Keep the old one if storage is full. */ }
+  }
   closeEditor();
   renderToday();
   window.scrollTo({ top: 0, behavior: 'smooth' });

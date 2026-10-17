@@ -173,6 +173,22 @@ textarea { padding: var(--s-2) var(--s-3); resize: vertical; }
 /* Notices */
 .notice { background: var(--surface-2); border-color: var(--border-strong); font-weight: 600; }
 .cta { font-size: 1.5rem; margin-bottom: var(--s-4); }
+#favs { margin-top: var(--s-4); }
+#favs .label { font-size: .875rem; font-weight: 400; color: var(--text-2); margin: 0 0 var(--s-2); }
+/* Favourites: one row of pills that scrolls sideways, so any number fits in one line. */
+.chips { display: flex; gap: var(--s-2); margin: 0 calc(-1 * var(--s-6)); padding: 0 var(--s-6) var(--s-1); list-style: none; overflow-x: auto; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chips li { flex: none; }
+.chip {
+  display: flex; align-items: center; gap: var(--s-2); max-width: 220px; min-height: var(--control-h); padding: 0 var(--s-3);
+  font: inherit; font-size: .9375rem; color: var(--text); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--r-pill); cursor: pointer; white-space: nowrap;
+  transition: background var(--ease), border-color var(--ease);
+}
+.chip:hover { border-color: var(--border-strong); }
+.chip:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.chip .name { overflow: hidden; text-overflow: ellipsis; }
+.chip .cal { color: var(--text-2); font-variant-numeric: tabular-nums; }
 #welcome { margin: calc(-1 * var(--s-2)) 0 var(--s-4); }
 
 /* Compose and loading */

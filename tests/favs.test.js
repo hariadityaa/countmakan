@@ -1,12 +1,19 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadFavs, saveFavs, cleanFavs, favFromEntry, favRefs, mergeFavs, favKcal } from '../js/favs.js';
+import { loadFavs, saveFavs, cleanFavs, favFromEntry, favRefs, mergeFavs, favKcal, bumpFav } from '../js/favs.js';
 
 const mem = () => {
   const m = new Map();
   return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, v) };
 };
 const RICE = { name: 'Chicken rice', grams: 350, kcal: 600, protein: 25, carbs: 75, fat: 20, confidence: 0.5 };
+
+test('bumpFav moves the last used favourite to the front', () => {
+  const list = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+  assert.deepEqual(bumpFav(list, 'c').map((f) => f.id), ['c', 'a', 'b']);
+  assert.equal(bumpFav(list, 'a'), list);
+  assert.equal(bumpFav(list, 'zz'), list);
+});
 
 test('favourites round-trip through storage', () => {
   const s = mem();
