@@ -286,7 +286,6 @@ function renderSummary() {
   const status = over ? 'Over goal' : onTarget(t.kcal, goal) ? 'On target' : 'Under goal';
   // Fewer than 3 logged days is too few to average.
   const avg = dailyAverage(state.entries, today);
-  const stat = (label, value) => el('div', { class: 'stat' }, el('div', { class: 'stat-label' }, label), el('div', { class: 'stat-num' }, value));
   const ring = el('div', { class: 'ring-wrap' },
     el('div', { class: 'ring-center' },
       el('div', { class: `big-num${over ? ' over' : ''}` }, fmt(t.kcal)),
@@ -298,7 +297,7 @@ function renderSummary() {
       el('div', { class: 'hero-text' },
         t.kcal > 0 ? statusPill(status, over ? 'over' : status === 'On target' ? 'good' : '') : null,
         el('div', { class: 'stat-label' }, status === 'On target' ? `±10% of ${fmt(goal)} goal` : `Goal ${fmt(goal)}`),
-        avg?.days >= 3 ? stat(`${avg.days}-day avg`, fmt(avg.kcal)) : null)),
+        avg?.days >= 3 ? el('div', { class: 'stat-label' }, `${avg.days}-day avg ${fmt(avg.kcal)}`) : null)),
     el('div', { class: 'bars' }, MACRO_KEYS.map((m) => bar(m, t[m], state.targets[m]))),
     el('div', { class: 'bars' },
       limitBar('Sugar', t.sugar, state.targets.sugar, 'g'),
