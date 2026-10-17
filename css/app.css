@@ -271,6 +271,16 @@ pre { white-space: pre-wrap; word-break: break-word; font: .875rem/1.5 var(--fon
 .total { font-size: 1.25rem; font-weight: 600; margin: var(--s-4) 0 0; font-variant-numeric: tabular-nums; }
 .total-sub { color: var(--text-2); font-variant-numeric: tabular-nums; }
 
+/* Editor summary: totals and actions sit at the top, before the food list */
+.editor-summary { border-bottom: 1px solid var(--border); padding-bottom: var(--s-3); margin-bottom: var(--s-3); }
+.editor-summary .total { margin-top: 0; }
+.editor-summary .total-sub { margin: var(--s-1) 0 0; }
+.editor-actions { display: flex; gap: var(--s-2); margin-top: var(--s-3); }
+.editor-actions .btn { margin: 0; padding: 0 var(--s-3); white-space: nowrap; }
+.editor-actions .btn.primary { flex: 1; min-height: var(--control-h); }
+.editor-actions .btn:not(.primary) { flex: 0 0 auto; width: auto; }
+.editor-actions .btn.fav-btn { width: var(--control-h); padding: 0; font-size: 1.25rem; }
+
 /* Meal lists */
 .entries { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); }
 .entry {

@@ -110,7 +110,7 @@ for (const width of [360, 412]) {
       await page.getByRole('button', { name: 'Count calories' }).click();
       await expect(page.locator('#editor-total')).toBeVisible();
       await check(page, 'results');
-      await page.getByRole('button', { name: '☆ Save as a favourite' }).click();
+      await page.getByRole('button', { name: 'Save as a favourite' }).click();
       await page.getByRole('button', { name: 'Save meal' }).click();
       await expect(page.locator('#favs')).toBeVisible();
       await expect(page.locator('#today-list .entry')).toHaveCount(1);
