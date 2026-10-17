@@ -1007,6 +1007,15 @@ function openOwnKeySetup() {
   $('#setup').scrollIntoView({ block: 'start' });
 }
 
+// First key, from Setup or a setup link: goals come next, with Suggest open. Close keeps the defaults.
+function openGoalSetup() {
+  showTab('settings');
+  $('#goals').open = true;
+  $('#suggest').open = true;
+  $('#goals').scrollIntoView({ block: 'start' });
+  toast("You're all set. Now set your daily goals, or close to keep the defaults.", { ms: 6000 });
+}
+
 function readKeyInputs() {
   return { gemini: $('#key-gemini').value, deepseek: $('#key-deepseek').value };
 }
@@ -1212,10 +1221,12 @@ async function boot() {
   $('#start-over').addEventListener('click', resetAdd);
   initSheet();
   $('#save-keys').addEventListener('click', () => {
+    const first = !hasKeys();
     state.keys = saveKeys(readKeyInputs());
     renderSettings();
     showStep('add');
-    toast('Keys saved ✓');
+    if (first && hasKeys() && !localStorage.getItem('countmakan.targets')) openGoalSetup();
+    else toast('Keys saved ✓');
   });
   $('#test-keys').addEventListener('click', onTestKeys);
   $('#make-link').addEventListener('click', onMakeLink);
@@ -1248,7 +1259,8 @@ async function boot() {
     health.preload().catch(() => {});
     syncHealth();
   }
-  if (fromLink) toast("You're all set. Take a photo of your food to start.", { ms: 6000 });
+  if (fromLink && !localStorage.getItem('countmakan.targets')) openGoalSetup();
+  else if (fromLink) toast("You're all set. Take a photo of your food to start.", { ms: 6000 });
 
   watchForUpdates();
 }
