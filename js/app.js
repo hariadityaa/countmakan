@@ -297,7 +297,7 @@ function renderSummary() {
     el('div', { class: 'hero' }, ring,
       el('div', { class: 'hero-text' },
         t.kcal > 0 ? statusPill(status, over ? 'over' : status === 'On target' ? 'good' : '') : null,
-        stat(status === 'On target' ? '±10% of goal' : 'Goal', fmt(goal)),
+        el('div', { class: 'stat-label' }, status === 'On target' ? `±10% of ${fmt(goal)} goal` : `Goal ${fmt(goal)}`),
         avg?.days >= 3 ? stat(`${avg.days}-day avg`, fmt(avg.kcal)) : null)),
     el('div', { class: 'bars' }, MACRO_KEYS.map((m) => bar(m, t[m], state.targets[m]))),
     el('div', { class: 'bars' },
