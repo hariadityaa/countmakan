@@ -119,7 +119,7 @@ for (const width of [360, 412]) {
       await page.locator('#today-list .entry').first().click();
       await check(page, 'edit meal');
       await page.getByRole('button', { name: 'Cancel' }).click();
-      await page.getByRole('button', { name: 'Type it in' }).click();
+      await page.getByRole('button', { name: 'Type', exact: true }).click();
       await check(page, 'type it in');
       await page.getByRole('button', { name: 'Cancel' }).click();
 

@@ -95,8 +95,11 @@ textarea { padding: var(--s-2) var(--s-3); resize: vertical; }
   min-height: var(--hero-h); margin: 0; font-size: 1.125rem;
   background: var(--accent); color: var(--accent-text); border-color: var(--accent);
 }
-.btn.hero .icon { display: grid; place-items: center; }
-.btn.hero svg { width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+/* Three equal tiles: icon above a short label. */
+.actions { display: flex; gap: var(--s-2); }
+.actions > .btn { flex: 1 1 0; flex-direction: column; gap: var(--s-1); margin: 0; min-height: var(--hero-h); padding: var(--s-2); font-size: .9375rem; white-space: nowrap; }
+.actions .icon { display: grid; place-items: center; }
+.actions svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
 .btn.danger { color: var(--red); }
 .btn:disabled { opacity: .6; cursor: default; }
 .row { display: flex; gap: var(--s-2); flex-wrap: wrap; }
