@@ -9,7 +9,7 @@ import { describeFailure, scanSummary, MSG } from './messages.js';
 import * as db from './db.js';
 import * as health from './health.js';
 import { foodIconSvg } from './food-icons.js';
-import { ringSvg, weekChartSvg, daySeries, macroSplit } from './charts.js';
+import { ringSvg, weekChartSvg, daySeries, macroSplit, dailyAverage, isOver, onTarget } from './charts.js';
 import { suggestTargets, goalHint, ACTIVITY, GOAL_CHOICES } from './suggest.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -245,13 +245,17 @@ function resetAdd() {
 }
 
 // ---------- Summary ----------
+// Protein is a floor, so reaching it is a win rather than over.
 function bar(m, value, target) {
   const pct = target ? Math.min(100, (value / target) * 100) : 0;
-  const over = target && value > target;
+  const reached = target && value >= target;
+  const tag = !reached ? null
+    : m === 'protein' ? el('span', { class: 'hit-tag' }, ' · ✓ hit')
+      : value > target ? el('span', { class: 'over-tag' }, ' · over') : null;
   return el('div', {},
     el('div', { class: 'bar-label' },
       el('span', {}, dot(m), MACRO_NAMES[m]),
-      el('span', {}, `${fmt(value)} g of ${fmt(target)} g`, over ? el('span', { class: 'over-tag' }, ' · over') : null)),
+      el('span', {}, `${fmt(value)} g of ${fmt(target)} g`, tag)),
     el('div', { class: 'bar', 'aria-hidden': 'true' }, el('i', { class: m, style: `width:${pct}%` })));
 }
 
@@ -283,6 +287,13 @@ function renderSummary() {
   const t = totals(state.entries.filter((e) => e.day === today).flatMap((e) => e.items));
   const goal = state.targets.kcal;
   const left = goal - t.kcal;
+  const steady = onTarget(t.kcal, goal);
+  const avg = dailyAverage(state.entries, today);
+  const avgLine = avg && (() => {
+    const diff = Math.round(avg.kcal - goal);
+    const vs = diff === 0 ? 'on goal' : `${fmt(Math.abs(diff))} ${diff > 0 ? 'over' : 'under'} goal`;
+    return el('div', { class: 'avg-line' }, `7-day avg: ${fmt(avg.kcal)} · ${vs}`, avg.days < 7 ? ` (avg of ${avg.days} day${avg.days > 1 ? 's' : ''})` : '');
+  })();
   const ring = el('div', { class: 'ring-wrap' },
     el('div', { class: 'ring-center' },
       el('div', { class: 'big-num' }, fmt(t.kcal)),
@@ -293,8 +304,9 @@ function renderSummary() {
     el('div', { class: 'muted' }, `Today, ${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}`),
     el('div', { class: 'hero' }, ring,
       el('div', { class: 'hero-text' },
-        el('div', { class: `hero-left${left < 0 ? ' over' : ''}` }, fmt(Math.abs(left))),
-        el('div', {}, left >= 0 ? `left of your ${fmt(goal)} goal` : `over your ${fmt(goal)} goal`))),
+        el('div', { class: `hero-left${isOver(t.kcal, goal) ? ' over' : ''}` }, steady ? 'On target' : fmt(Math.abs(left))),
+        el('div', {}, `${steady ? `${fmt(Math.abs(left))} ` : ''}${left >= 0 ? 'left of' : 'over'} your ${fmt(goal)} goal`),
+        avgLine)),
     splitStrip(t),
     el('div', { class: 'bars' }, MACRO_KEYS.map((m) => bar(m, t[m], state.targets[m]))),
     el('div', { class: 'bars' },
