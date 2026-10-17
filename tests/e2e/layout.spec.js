@@ -62,7 +62,7 @@ for (const width of [360, 412]) {
       expect.soft(await page.evaluate(wrappedLabels), 'edit meal').toEqual([]);
       await page.getByRole('button', { name: 'Cancel' }).click();
 
-      await page.getByRole('button', { name: 'Type it in' }).click();
+      await page.getByRole('button', { name: 'Type', exact: true }).click();
       expect.soft(await page.evaluate(wrappedLabels), 'type it in').toEqual([]);
       await page.getByRole('button', { name: 'Cancel' }).click();
 
