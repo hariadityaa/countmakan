@@ -271,43 +271,26 @@ function limitBar(label, value, target, unit, isMin = false) {
     el('div', { class: 'bar', 'aria-hidden': 'true' }, el('i', { style: `width:${pct}%` })));
 }
 
-// One strip split by each macro's share of calories.
-function splitStrip(t) {
-  const split = macroSplit(t);
-  if (!split) return null;
-  return el('div', { class: 'split' },
-    el('div', { class: 'split-title' }, 'Where your calories came from'),
-    el('div', { class: 'split-bar', 'aria-hidden': 'true' },
-      MACRO_KEYS.filter((m) => split[m] > 0).map((m) => el('i', { class: m, style: `flex-grow:${split[m]}` }))),
-    el('div', { class: 'split-legend' }, MACRO_KEYS.map((m) => el('span', { class: 'nowrap' }, dot(m), `${MACRO_NAMES[m]} ${split[m]}%`))));
-}
-
 function renderSummary() {
   const today = localDay(new Date());
   const t = totals(state.entries.filter((e) => e.day === today).flatMap((e) => e.items));
   const goal = state.targets.kcal;
-  const left = goal - t.kcal;
-  const steady = onTarget(t.kcal, goal);
+  const over = isOver(t.kcal, goal);
+  const status = over ? 'Over goal' : onTarget(t.kcal, goal) ? 'On target' : 'Under goal';
   const avg = dailyAverage(state.entries, today);
-  const avgLine = avg && (() => {
-    const diff = Math.round(avg.kcal - goal);
-    const vs = diff === 0 ? 'on goal' : `${fmt(Math.abs(diff))} ${diff > 0 ? 'over' : 'under'} goal`;
-    return el('div', { class: 'avg-line' }, `7-day avg: ${fmt(avg.kcal)} · ${vs}`, avg.days < 7 ? ` (avg of ${avg.days} day${avg.days > 1 ? 's' : ''})` : '');
-  })();
+  const stat = (label, value) => el('div', { class: 'stat' }, el('div', { class: 'stat-label' }, label), el('div', { class: 'stat-num' }, value));
   const ring = el('div', { class: 'ring-wrap' },
     el('div', { class: 'ring-center' },
-      el('div', { class: 'big-num' }, fmt(t.kcal)),
+      el('div', { class: `big-num${over ? ' over' : ''}` }, fmt(t.kcal)),
       el('div', { class: 'ring-unit' }, 'calories')));
-  ring.insertAdjacentHTML('afterbegin', ringSvg(t.kcal, goal));
-  // splitStrip is null before the first meal. replaceChildren would print it as "null".
+  ring.insertAdjacentHTML('afterbegin', ringSvg(t.kcal, goal, macroSplit(t)));
   $('#summary').replaceChildren(...[
     el('div', { class: 'muted' }, `Today, ${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}`),
     el('div', { class: 'hero' }, ring,
       el('div', { class: 'hero-text' },
-        el('div', { class: `hero-left${isOver(t.kcal, goal) ? ' over' : ''}` }, steady ? 'On target' : fmt(Math.abs(left))),
-        el('div', {}, `${steady ? `${fmt(Math.abs(left))} ` : ''}${left >= 0 ? 'left of' : 'over'} your ${fmt(goal)} goal`),
-        avgLine)),
-    splitStrip(t),
+        t.kcal > 0 ? el('div', { class: `hero-status${over ? ' over' : ''}` }, status) : null,
+        stat('Goal', fmt(goal)),
+        avg ? stat(`${avg.days}-day avg`, fmt(avg.kcal)) : null)),
     el('div', { class: 'bars' }, MACRO_KEYS.map((m) => bar(m, t[m], state.targets[m]))),
     el('div', { class: 'bars' },
       limitBar('Sugar', t.sugar, state.targets.sugar, 'g'),

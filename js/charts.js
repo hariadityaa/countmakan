@@ -54,14 +54,26 @@ export function dailyAverage(entries, today, n = 7) {
 }
 
 // Progress ring for calories eaten against target.
-export function ringSvg(value, target) {
+// split (from macroSplit) colours the arc by each macro's share of calories.
+export function ringSvg(value, target, split = null) {
   const R = 50;
   const C = 2 * Math.PI * R;
   const frac = target > 0 ? Math.min(1, value / target) : 0;
   const over = isOver(value, target);
-  const arc = frac > 0
-    ? `<circle class="ring-val${over ? ' over' : ''}" cx="60" cy="60" r="${R}" stroke-dasharray="${r1(C * frac)} ${r1(C)}" transform="rotate(-90 60 60)"/>`
-    : '';
+  const seg = (cls, start, len) => `<circle class="${cls}" cx="60" cy="60" r="${R}" stroke-dasharray="${r1(len)} ${r1(C)}" stroke-dashoffset="${r1(-start)}" transform="rotate(-90 60 60)"/>`;
+  let arc = '';
+  if (frac > 0 && split) {
+    // A 1.5-unit gap between segments keeps adjacent colours apart.
+    const total = C * frac;
+    let start = 0;
+    for (const m of Object.keys(KCAL_PER_G)) {
+      const len = (total * split[m]) / 100;
+      if (len > 0) arc += seg(`ring-seg ${m}`, start, Math.max(0.5, len - 1.5));
+      start += len;
+    }
+  } else if (frac > 0) {
+    arc = seg(`ring-val${over ? ' over' : ''}`, 0, C * frac);
+  }
   return `<svg class="ring" viewBox="0 0 120 120" aria-hidden="true">`
     + `<circle class="ring-track" cx="60" cy="60" r="${R}"/>${arc}</svg>`;
 }
